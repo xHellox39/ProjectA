@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { AnimatePresence } from 'framer-motion'
 
 import Login from './pages/Login'
+import Register from './pages/Register'
 import RoleSelection from './pages/RoleSelection'
 
 import AdminLayout from './components/AdminLayout'
@@ -21,7 +22,10 @@ import PublicPageTransition from './components/PublicPageTransition'
 
 function AppRoutes() {
   const location = useLocation()
-  const isPublicPage = location.pathname === '/login' || location.pathname === '/role'
+  const isPublicPage =
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/role'
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -33,6 +37,15 @@ function AppRoutes() {
           element={
             <PublicPageTransition>
               <Login />
+            </PublicPageTransition>
+          }
+        />
+
+        <Route
+          path="/register"
+          element={
+            <PublicPageTransition>
+              <Register />
             </PublicPageTransition>
           }
         />

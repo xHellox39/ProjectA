@@ -1,12 +1,23 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Building2, Eye, LockKeyhole, LogIn, Mail } from 'lucide-react'
+import {
+  Building2,
+  Eye,
+  LockKeyhole,
+  Mail,
+  User,
+  UserPlus,
+} from 'lucide-react'
 
-function Login() {
+function Empty() {
+    return null;
+}
+
+function Register() {
   const navigate = useNavigate()
 
-  function handleSignIn() {
-    navigate('/admin')
+  function handleCreateAccount() {
+    navigate('/role')
   }
 
   return (
@@ -40,7 +51,7 @@ function Login() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.45, duration: 0.55 }}
           >
-            Master Your Real Estate Ecosystem.
+            Start managing property smarter.
           </motion.h1>
 
           <motion.p
@@ -48,8 +59,8 @@ function Login() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.55, duration: 0.55 }}
           >
-            Join over 5,000 property managers and investors who trust PRMS for
-            secure, automated, and high-yield property management across Southeast Asia.
+            Create your PRMS account first, then choose whether you are joining as
+            a tenant, landlord, or admin user.
           </motion.p>
 
           <motion.div
@@ -61,19 +72,17 @@ function Login() {
           >
             <div className="avatar-group">
               <motion.div className="avatar" whileHover={{ y: -4 }}>
-                JD
+                PR
               </motion.div>
-
               <motion.div className="avatar" whileHover={{ y: -4 }}>
-                MC
+                MS
               </motion.div>
-
               <motion.div className="avatar" whileHover={{ y: -4 }}>
-                SA
+                AI
               </motion.div>
             </div>
 
-            <span>Trusted by regional leaders</span>
+            <span>Secure property management workflow</span>
           </motion.div>
         </div>
       </motion.section>
@@ -95,7 +104,7 @@ function Login() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.35 }}
           >
-            Welcome Back
+            Create Account
           </motion.h2>
 
           <motion.p
@@ -104,7 +113,7 @@ function Login() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.38, duration: 0.35 }}
           >
-            Log in to manage your property portfolio.
+            Register first, then select your PRMS role.
           </motion.p>
 
           <form>
@@ -113,8 +122,19 @@ function Login() {
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.46, duration: 0.35 }}
             >
-              <label>Email Address</label>
+              <label>Full Name</label>
+              <div className="input-box">
+                <User size={22} />
+                <input type="text" placeholder="Enter your full name" />
+              </div>
+            </motion.div>
 
+            <motion.div
+              initial={{ y: 18, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.54, duration: 0.35 }}
+            >
+              <label>Email Address</label>
               <div className="input-box">
                 <Mail size={22} />
                 <input type="email" placeholder="name@example.com" />
@@ -124,77 +144,49 @@ function Login() {
             <motion.div
               initial={{ y: 18, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.54, duration: 0.35 }}
+              transition={{ delay: 0.62, duration: 0.35 }}
             >
               <label>Password</label>
-
               <div className="input-box">
                 <LockKeyhole size={22} />
-                <input type="password" placeholder="••••••••" />
+                <input type="password" placeholder="Create password" />
                 <Eye size={22} className="input-right-icon" />
               </div>
             </motion.div>
 
             <motion.div
-              className="form-row"
               initial={{ y: 18, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.62, duration: 0.35 }}
+              transition={{ delay: 0.7, duration: 0.35 }}
             >
-              <label className="remember">
-                <input type="checkbox" />
-                Remember me
-              </label>
-
-              <a href="#">Forgot Password?</a>
+              <label>Confirm Password</label>
+              <div className="input-box">
+                <LockKeyhole size={22} />
+                <input type="password" placeholder="Confirm password" />
+                <Eye size={22} className="input-right-icon" />
+              </div>
             </motion.div>
 
             <motion.button
               type="button"
               className="primary-btn"
-              onClick={handleSignIn}
+              onClick={handleCreateAccount}
               initial={{ y: 18, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.7, duration: 0.35 }}
+              transition={{ delay: 0.8, duration: 0.35 }}
               whileHover={{ y: -2, scale: 1.01 }}
               whileTap={{ scale: 0.97 }}
             >
-              Sign In <LogIn size={20} />
+              Create Account <UserPlus size={20} />
             </motion.button>
-
-            <motion.div
-              className="divider"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8, duration: 0.35 }}
-            >
-              <span></span>
-              <p>OR CONTINUE WITH</p>
-              <span></span>
-            </motion.div>
-
-            <motion.div
-              className="social-row"
-              initial={{ y: 18, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.88, duration: 0.35 }}
-            >
-              <motion.button type="button" whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
-                Google
-              </motion.button>
-
-              <motion.button type="button" whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
-                Apple
-              </motion.button>
-            </motion.div>
 
             <motion.p
               className="signup-text"
               initial={{ y: 18, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.96, duration: 0.35 }}
+              transition={{ delay: 0.9, duration: 0.35 }}
             >
-              Don&apos;t have an account? <Link to="/register">Sign up for free</Link>
+              Already have an account? <Link to="/login">Sign in</Link>
             </motion.p>
           </form>
         </motion.div>
@@ -203,4 +195,4 @@ function Login() {
   )
 }
 
-export default Login
+export default Register
