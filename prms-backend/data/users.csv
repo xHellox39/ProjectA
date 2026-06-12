@@ -1,6 +1,0 @@
-userId,email,hashed_password,created_date
-u001,testuser1@example.com,hashed_pass123,2026-06-05T10:00:00
-u002,testlandlord1@example.com,hashed_pass456,2026-06-05T10:05:00
-u003,testadmin1@example.com,hashed_admin789,2026-06-05T10:10:00
-u004,testtenant2@example.com,hashed_pass101,2026-06-05T10:15:00
-u005,testlandlord2@example.com,hashed_pass202,2026-06-05T10:20:00

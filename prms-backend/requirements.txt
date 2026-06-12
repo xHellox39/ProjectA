@@ -1,7 +1,0 @@
-# Required dependencies
-fastapi
-uvicorn[standard]
-pydantic
-email-validator
-python-multipart
-bcrypt
