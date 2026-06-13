@@ -48,8 +48,7 @@ function Register() {
 
     const result = await register(
       {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        full_name: `${formData.firstName} ${formData.lastName}`.trim(),
         email: formData.email,
         phone: formData.phone,
         password: formData.password,

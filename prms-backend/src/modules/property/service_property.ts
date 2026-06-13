@@ -43,7 +43,7 @@ export async function updateProperty(id: string, data: any) {
 }
 
 export async function deactivateProperty(id: string) {
-  return prisma.property.update({ where: { id }, data: { status: 'inactive' } });
+  return prisma.property.update({ where: { id }, data: { status: 'INACTIVE' } });
 }
 
 export async function addImage(propertyId: string, url: string) {

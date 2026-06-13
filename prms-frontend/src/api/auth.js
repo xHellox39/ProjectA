@@ -3,13 +3,12 @@ import { apiClient } from './ApiClient';
 /*  Auth endpoints  */
 
 export const authApi = {
-  register({ email, password, firstName, lastName, role }) {
+  register({ email, password, full_name, phone }) {
     return apiClient.post('/auth/register', {
       email,
       password,
-      firstName,
-      lastName,
-      role,
+      full_name,
+      phone,
     });
   },
 

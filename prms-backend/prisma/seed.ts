@@ -55,7 +55,7 @@ async function main() {
     create: {
       id: 'prop-001', title: 'Modern apartment in downtown', address: '123 Main St',
       property_type: 'apartment', rent: 2500, city: 'Springfield', state: 'IL',
-      ownerId: landlord.id, status: 'available',
+      ownerId: landlord.id, status: 'AVAILABLE',
     },
     update: { ownerId: landlord.id },
   });
@@ -65,7 +65,7 @@ async function main() {
     create: {
       id: 'prop-002', title: 'Cozy studio near campus', address: '456 University Ave',
       property_type: 'studio', rent: 1800, city: 'Springfield', state: 'IL',
-      ownerId: landlord.id, status: 'available',
+      ownerId: landlord.id, status: 'AVAILABLE',
     },
     update: { ownerId: landlord.id },
   });

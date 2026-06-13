@@ -18,7 +18,7 @@ export const updatePropertyBody = [
   body('rent').optional().isFloat({ gt: 0 }),
   body('city').optional().isString(),
   body('state').optional().isString(),
-  body('status').optional().isIn(['available', 'rented', 'maintenance']),
+  body('status').optional().isIn(['AVAILABLE', 'RENTED', 'MAINTENANCE', 'INACTIVE']),
   body('availableFrom').optional().isISO8601(),
   body('availableTo').optional().isISO8601(),
 ];
