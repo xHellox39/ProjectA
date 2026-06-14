@@ -80,16 +80,27 @@ function AuthProvider({ children }) {
       dispatch({ type: ACTIONS.CLEAR_ERROR });
       try {
         const { data } = await authApi.login({ email, password });
+        
+        const accessToken =
+        data?.data?.tokens?.accessToken ||
+        data?.accessToken ||
+        data?.token;
+        
+        const refreshToken =
+        data?.data?.tokens?.refreshToken ||
+        data?.refreshToken ||
+        data?.refresh_token;
 
-        /* Store tokens */
-        const accessToken = data.accessToken || data.token;
-        const refreshToken = data.refreshToken || data.refresh_token;
         localStorage.setItem('accessToken', accessToken);
         if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
 
         /* Fetch current user */
         const { data: meData } = await authApi.getMe();
-        const user = meData.user || meData;
+        
+        const user =
+        meData?.data?.user ||
+        meData?.user ||
+        meData;
 
         dispatch({ type: ACTIONS.SET_USER, payload: user });
 
@@ -206,7 +217,7 @@ function roleToPath(role) {
   const lower = role.toLowerCase();
   if (lower.includes('landlord')) return '/landlord';
   if (lower.includes('tenant')) return '/tenant';
-  if (lower.includes('admin')) return '/admin';
+  if (lower.includes('admin')) return '/';
   return '/admin';
 }
 

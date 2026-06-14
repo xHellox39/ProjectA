@@ -1,6 +1,28 @@
 # PRMS - Property Rental Management System
 
-A full-stack property rental management application with TypeScript/Express backend and Next.js frontend.
+How To Start
+
+----------------------------------
+windows
+----------------------------------
+rmdir /s /q node_modules
+del package-lock.json
+npm install
+npm rebuild better-sqlite3
+npx prisma generate
+npx prisma db push
+npm run dev
+
+----------------------------------
+Linux
+----------------------------------
+rm -rf node_modules
+rm package-lock.json
+npm install
+npm rebuild better-sqlite3
+npx prisma generate
+npx prisma db push
+npm run dev
 
 ## Tech Stack
 

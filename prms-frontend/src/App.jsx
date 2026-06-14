@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute';
+import { Navigate } from 'react-router-dom';
 import PageTransition from './components/PageTransition';
 import PublicPageTransition from './components/PublicPageTransition';
 
@@ -42,7 +43,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* ── Public routes (redirect if already logged in) ── */}
+      <Route path="/" element={<Navigate to="/admin" replace />} />
       <Route
         path="/login"
         element={
@@ -65,14 +66,8 @@ function AppRoutes() {
       />
 
       {/* ── Admin ──────────────────────────────────────── */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <AdminLayout />
-          </ProtectedRoute>
-        }
-      >
+      
+      <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
         <Route index element={<AdminDashboard />} />
         <Route path="index" element={<AdminDashboard />} />
         <Route path="dashboard" element={<AdminDashboard />} />
