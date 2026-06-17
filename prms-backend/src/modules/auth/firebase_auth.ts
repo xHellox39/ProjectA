@@ -1,22 +1,25 @@
-import { initializeApp, applicationDefault, App, getApps } from "firebase-admin/app";
-import { getAuth, DecodedIdToken } from "firebase-admin/auth";
-import { env } from "../../config";
+import { initializeApp, cert, getApps, App } from 'firebase-admin/app';
+import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
 
-// Initialize Firebase Admin SDK (v14 API) - only once, shared across modules
+const serviceAccount = require('../../../firebase-service-account.json');
+
 let initializedApp: App;
+
 if (getApps().length === 0) {
   initializedApp = initializeApp({
-    credential: process.env.GCP_SA_KEY
-      ? JSON.parse(process.env.GCP_SA_KEY)
-      : applicationDefault(),
-    projectId: env.FIREBASE_PROJECT_ID,
+    credential: cert(serviceAccount),
   });
 } else {
   initializedApp = getApps()[0];
 }
 
-export function verifyFirebaseToken(token: string): Promise<string> {
-  return getAuth(initializedApp).verifyIdToken(token).then((decodedToken) => decodedToken.uid);
+export async function verifyFirebaseToken(
+  token: string
+): Promise<string> {
+  const decodedToken = await getAuth(initializedApp)
+    .verifyIdToken(token);
+
+  return decodedToken.uid;
 }
 
 export { getAuth, DecodedIdToken };
