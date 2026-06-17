@@ -76,7 +76,7 @@ function GuestHome() {
   ]
 
   function handleSearch() {
-    navigate('/tenant/properties')
+    navigate('/properties')
   }
 
   return (
@@ -224,7 +224,7 @@ function GuestHome() {
               <span>Verified property area</span>
             </div>
 
-            <Link to="/tenant/properties">
+            <Link to="/properties">
               Explore Verified Listings <ArrowRight size={18} />
             </Link>
           </motion.article>

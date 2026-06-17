@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { AnimatePresence } from 'framer-motion'
 
 import GuestHome from './pages/GuestHome'
+import GuestProperties from './pages/GuestProperties'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import RoleSelection from './pages/RoleSelection'
@@ -25,6 +26,7 @@ function AppRoutes() {
   const location = useLocation()
   const isPublicPage =
     location.pathname === '/' ||
+    location.pathname === '/properties' ||
     location.pathname === '/login' ||
     location.pathname === '/register' ||
     location.pathname === '/role'
@@ -37,6 +39,15 @@ function AppRoutes() {
           element={
             <PublicPageTransition>
               <GuestHome />
+            </PublicPageTransition>
+          }
+        />
+
+        <Route
+          path="/properties"
+          element={
+            <PublicPageTransition>
+              <GuestProperties />
             </PublicPageTransition>
           }
         />
@@ -103,7 +114,6 @@ function AppRoutes() {
           <Route path="help" element={<TenantSimplePage type="help" />} />
         </Route>
 
-        <Route path="/properties" element={<Navigate to="/tenant/properties" />} />
         <Route path="/settings" element={<Navigate to="/admin/settings" />} />
       </Routes>
     </AnimatePresence>
