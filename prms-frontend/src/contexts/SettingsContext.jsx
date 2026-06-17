@@ -155,6 +155,12 @@ export function SettingsProvider({ children }) {
 
   /* Update a single setting (live preview mode) */
   const updateSetting = useCallback(async (key, value) => {
+    /* Capture current state before updating so revert works correctly */
+    const previousValue = settingsObj[key];
+
+    /* Skip if key is falsy or value is not a valid string */
+    if (!key || value === undefined || value === null) return;
+
     const updated = { ...settingsObj, [key]: value };
     setSettingsObj(updated);
     applyCssVariables(updated);
@@ -164,18 +170,16 @@ export function SettingsProvider({ children }) {
 
     /* Persist to backend */
     try {
-      await adminApi.updateSetting({ key, value });
+      await adminApi.updateSetting({ key: String(key), value: String(value) });
     } catch (err) {
-      /* Revert on failure */
-      const reverted = { ...DEFAULTS };
-      const rawBeforeError = settingsRaw;
-      for (const item of rawBeforeError) {
-        reverted[item.key] = item.value;
-      }
+      /* Revert only the failed key */
+      const reverted = { ...settingsObj, [key]: previousValue };
       setSettingsObj(reverted);
+      applyCssVariables(reverted);
+      setSettingsRaw(prev => prev.map(s => s.key === key ? { ...s, value: previousValue } : s));
       setError('Failed to save setting: ' + err.message);
     }
-  }, [settingsObj, settingsRaw, applyCssVariables]);
+  }, [settingsObj, applyCssVariables]);
 
   /* Batch update multiple settings */
   const bulkUpdateSettings = useCallback(async (settingsArray) => {

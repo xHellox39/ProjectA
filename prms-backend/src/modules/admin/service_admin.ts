@@ -5,7 +5,18 @@ export async function getSystemSettings() {
 }
 
 export async function updateSystemSetting(key: string, value: string) {
-  return prisma.systemSetting.update({ where: { key }, data: { value } });
+  if (!key || key === 'undefined') {
+    throw new Error('Setting key is required');
+  }
+  if (value === undefined || value === null) {
+    value = '';
+  }
+  const category = String(key).split('_')[0] ?? 'general';
+  return prisma.systemSetting.upsert({
+    where: { key: String(key) },
+    update: { value: String(value) },
+    create: { key: String(key), value: String(value), category },
+  });
 }
 
 export async function addSystemSetting(key: string, value: string, category = 'general', description?: string) {

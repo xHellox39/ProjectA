@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import {
   Palette, Building2, Type, LayoutTemplate,
@@ -117,13 +117,13 @@ const FIELDS = {
   ],
 
   features: [
-    { key: 'feature_payments',        label: 'Payments Module',        help: 'Allow property rental payments' },
-    { key: 'feature_maintenance',     label: 'Maintenance Module',     help: 'Maintenance ticket requests' },
-    { key: 'feature_messaging',       label: 'Messaging Module',       help: 'In-app messaging between users' },
-    { key: 'feature_notifications',   label: 'Notifications Module',   help: 'Push and in-app notifications' },
-    { key: 'feature_analytics',       label: 'Analytics Module',       help: 'Dashboard analytics and reports' },
-    { key: 'feature_recommendations', label: 'Recommendations Module', help: 'AI-based property recommendations' },
-    { key: 'feature_maps',            label: 'Maps Integration',       help: 'Interactive property location maps' },
+    { key: 'feature_payments',        label: 'Payments Module',        type: 'toggle', help: 'Allow property rental payments' },
+    { key: 'feature_maintenance',     label: 'Maintenance Module',     type: 'toggle', help: 'Maintenance ticket requests' },
+    { key: 'feature_messaging',       label: 'Messaging Module',       type: 'toggle', help: 'In-app messaging between users' },
+    { key: 'feature_notifications',   label: 'Notifications Module',   type: 'toggle', help: 'Push and in-app notifications' },
+    { key: 'feature_analytics',       label: 'Analytics Module',       type: 'toggle', help: 'Dashboard analytics and reports' },
+    { key: 'feature_recommendations', label: 'Recommendations Module', type: 'toggle', help: 'AI-based property recommendations' },
+    { key: 'feature_maps',            label: 'Maps Integration',       type: 'toggle', help: 'Interactive property location maps' },
   ],
 };
 
@@ -230,12 +230,11 @@ function LivePreviewPanel({ settings }) {
   return (
     <div className="wc-preview" style={{ backgroundColor: settings.theme_background_color || '#f3f6fb' }}>
       <div className="wc-preview-header" style={{ background: settings.header_background_color, color: settings.header_text_color }}>
-        {settings.header_show_logo === 'true' && (
+        {settings.header_show_logo === 'true' && (settings.branding_logo_url ?? '').trim() && (
           <img
-            src={settings.branding_logo_url || ''}
+            src={settings.branding_logo_url}
             alt="Logo preview"
             className="wc-preview-logo"
-            style={{ display: settings.branding_logo_url ? 'block' : 'none' }}
           />
         )}
         <span className="wc-preview-brand">{settings.branding_site_name || 'PRMS'}</span>

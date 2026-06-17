@@ -2,15 +2,15 @@
   min-height: 100vh;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  background: #f3f6fb;
-  color: #0f172a;
+  background: var(--background-color);
+  color: var(--text-color);
 }
 
 .admin-layout-sidebar {
   width: 96px;
   min-height: 100vh;
   padding: 34px 18px;
-  background: #0f172a;
+  background: var(--header-background-color);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -36,7 +36,7 @@
   justify-content: center;
   gap: 14px;
   background: transparent;
-  color: #94a3b8;
+  color: var(--footer-text-color);
   cursor: pointer;
   transition: width 0.25s ease, background 0.2s ease, color 0.2s ease, padding 0.25s ease;
 }
@@ -73,7 +73,7 @@
 }
 
 .admin-layout-side-btn.active {
-  background: linear-gradient(135deg, #8a2be2, #b84cff);
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   color: white;
   box-shadow: 0 12px 24px rgba(138, 43, 226, 0.3);
 }
@@ -117,7 +117,7 @@
 .admin-layout-brand h2 {
   margin: 0;
   font-size: 28px;
-  color: #111827;
+  color: var(--text-color);
   letter-spacing: -0.5px;
 }
 
@@ -147,14 +147,14 @@
   display: grid;
   place-items: center;
   background: transparent;
-  color: #0f172a;
+  color: var(--text-color);
   cursor: pointer;
 }
 
 .admin-layout-avatar {
   width: 48px;
   height: 48px;
-  border: 4px solid #8a2be2;
+  border: 4px solid var(--primary-color);
   border-radius: 50%;
   display: grid;
   place-items: center;
