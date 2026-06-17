@@ -1,112 +1,172 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3500';
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3500';
 
 /* ------------------------------------------------------------------ */
-/*  Core Axios instance                                                */
+/* Core Axios instance                                                */
 /* ------------------------------------------------------------------ */
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 /* ------------------------------------------------------------------ */
-/*  Request interceptor — attach JWT automatically                    */
+/* Request interceptor                                                */
 /* ------------------------------------------------------------------ */
 
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
-    if (token) {
+
+    if (
+      token &&
+      token !== 'undefined' &&
+      token !== 'null'
+    ) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
 /* ------------------------------------------------------------------ */
-/*  Token-refresh helper                                               */
+/* Refresh state                                                      */
 /* ------------------------------------------------------------------ */
 
 let isRefreshing = false;
 let failedQueue = [];
-
-/* Hydration flag set by AuthContext — shared via window __prmsHydrating */
+let isLoggingOut = false;
 
 const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
+  failedQueue.forEach((promise) => {
+    if (error) {
+      promise.reject(error);
+    } else {
+      promise.resolve(token);
+    }
   });
+
   failedQueue = [];
 };
 
+/* ------------------------------------------------------------------ */
+/* Refresh helper                                                     */
+/* ------------------------------------------------------------------ */
+
 async function refreshToken() {
-  const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
-    refreshToken: localStorage.getItem('refreshToken'),
-  });
-  return data;
+  const refreshTokenValue = localStorage.getItem('refreshToken');
+
+  if (
+    !refreshTokenValue ||
+    refreshTokenValue === 'undefined' ||
+    refreshTokenValue === 'null'
+  ) {
+    throw new Error('Missing refresh token');
+  }
+
+  const response = await axios.post(
+    `${BASE_URL}/auth/refresh`,
+    {
+      refreshToken: refreshTokenValue,
+    }
+  );
+
+  return response.data;
 }
 
 /* ------------------------------------------------------------------ */
-/*  Response interceptor — auto-refresh token on 401                  */
+/* Response interceptor                                               */
 /* ------------------------------------------------------------------ */
 
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const original = error.config;
+    const originalRequest = error.config;
 
-    // 401 — try to refresh token once
-    if (error.response?.status === 401 && !original._retry) {
-      // During hydration, skip interceptor logout — let AuthContext handle it
-      if (window.__prmsHydrating && original.url === '/auth/me') {
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry
+    ) {
+      if (
+        window.__prmsHydrating === true &&
+        originalRequest.url === '/auth/me'
+      ) {
         return Promise.reject(error);
       }
 
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
+          failedQueue.push({
+            resolve,
+            reject,
+          });
         })
           .then((token) => {
-            original.headers.Authorization = `Bearer ${token}`;
-            return apiClient(original);
+            originalRequest.headers.Authorization =
+              `Bearer ${token}`;
+
+            return apiClient(originalRequest);
           })
           .catch((err) => Promise.reject(err));
       }
 
-      original._retry = true;
+      originalRequest._retry = true;
       isRefreshing = true;
 
       try {
         const data = await refreshToken();
-        // Backend wraps in successResponse: { success, message, data: { tokens } }
-        const tokens = data?.data?.tokens || data?.tokens;
-        const newToken = tokens?.accessToken;
-        if (!newToken) {
-          throw new Error('No access token in refresh response');
+
+        const tokens =
+          data?.data?.tokens ||
+          data?.tokens ||
+          {};
+
+        const newAccessToken =
+          tokens.accessToken;
+
+        if (!newAccessToken) {
+          throw new Error(
+            'Refresh response missing access token'
+          );
         }
-        localStorage.setItem('accessToken', newToken);
-        if (tokens?.refreshToken) {
-          localStorage.setItem('refreshToken', tokens.refreshToken);
+
+        localStorage.setItem(
+          'accessToken',
+          newAccessToken
+        );
+
+        if (tokens.refreshToken) {
+          localStorage.setItem(
+            'refreshToken',
+            tokens.refreshToken
+          );
         }
-        processQueue(null, newToken);
-        original.headers.Authorization = `Bearer ${newToken}`;
-        return apiClient(original);
-      } catch (err) {
-        processQueue(err);
+
+        processQueue(null, newAccessToken);
+
+        originalRequest.headers.Authorization =
+          `Bearer ${newAccessToken}`;
+
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+
         logoutUser();
-        return Promise.reject(err);
+
+        return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
-    }
-
-    // 403 — forbidden
-    if (error.response?.status === 403) {
-      // Resource access denied — stay on page, show message
     }
 
     return Promise.reject(error);
@@ -114,22 +174,52 @@ apiClient.interceptors.response.use(
 );
 
 /* ------------------------------------------------------------------ */
-/*  Convenience helpers                                                */
+/* Logout helper                                                      */
 /* ------------------------------------------------------------------ */
 
 function logoutUser() {
+  if (isLoggingOut) return;
+
+  isLoggingOut = true;
+
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
-  window.location.replace('/login');
+
+  sessionStorage.clear();
+
+  if (
+    window.location.pathname !== '/login'
+  ) {
+    window.location.replace('/login');
+  }
+
+  setTimeout(() => {
+    isLoggingOut = false;
+  }, 1000);
 }
 
-/* Unified error extraction so callers get a string message */
-function getApiError(res) {
-  if (!res.response) return res.message || 'Network error';
-  const body = res.response.data;
+/* ------------------------------------------------------------------ */
+/* Error helper                                                       */
+/* ------------------------------------------------------------------ */
+
+function getApiError(error) {
+  if (!error.response) {
+    return error.message || 'Network error';
+  }
+
+  const body = error.response.data;
+
   return (
-    body?.message || body?.error?.message || body?.error || 'Server error'
+    body?.message ||
+    body?.error?.message ||
+    body?.error ||
+    'Server error'
   );
 }
 
-export { apiClient, BASE_URL, logoutUser, getApiError };
+export {
+  apiClient,
+  BASE_URL,
+  logoutUser,
+  getApiError,
+};
