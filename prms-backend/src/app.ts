@@ -6,7 +6,6 @@ import { getAuth } from 'firebase-admin/auth';
 import { env } from './config';
 import { prisma } from './db';
 import { requestLogger } from './middleware/logging';
-import { apiLimiter } from './middleware/rateLimit';
 import { errorHandler } from './middleware/errorHandler';
 import authRoutes from './modules/auth/routes_auth';
 import userRoutes from './modules/user/routes_user';
@@ -61,7 +60,6 @@ router.post('/auth/verify', async (req, res) => {
   } catch (error) { res.status(401).json({ error: 'Invalid Firebase token' }); }
 });
 
-router.use(apiLimiter);
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/properties', propertyRoutes);

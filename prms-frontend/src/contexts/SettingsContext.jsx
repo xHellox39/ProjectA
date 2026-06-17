@@ -1,0 +1,229 @@
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { adminApi } from '../api/admin';
+
+const SettingsContext = createContext(null);
+
+/* Key -> CSS variable mapping for theme injection on <html> */
+const THEME_VARIABLE_MAP = {
+  theme_primary_color:       '--primary-color',
+  theme_secondary_color:     '--secondary-color',
+  theme_accent_color:        '--accent-color',
+  theme_background_color:    '--background-color',
+  theme_text_color:          '--text-color',
+  theme_font_family:         '--font-family',
+  theme_border_radius:       '--border-radius',
+  header_background_color:   '--header-background-color',
+  header_text_color:         '--header-text-color',
+  header_cta_button_color:   '--header-cta-button-color',
+  footer_background_color:   '--footer-background-color',
+  footer_text_color:         '--footer-text-color',
+};
+
+/* Default fallbacks so the page never breaks */
+const DEFAULTS = {
+  theme_primary_color:       '#8a2be2',
+  theme_secondary_color:     '#0f172a',
+  theme_accent_color:        '#b84cff',
+  theme_background_color:    '#f3f6fb',
+  theme_text_color:          '#111827',
+  theme_font_family:         'Inter, Arial, sans-serif',
+  theme_border_radius:       '10px',
+  theme_dark_mode:           'false',
+  branding_site_name:        'PRMS',
+  branding_company_name:     'Customizable Property Rental Management System',
+  branding_logo_url:         '',
+  branding_favicon_url:      '',
+  branding_footer_text:      'Customizable Property Rental Management System',
+  branding_support_email:    'support@prms.com',
+  branding_support_phone:    '',
+  header_background_color:   '#0f172a',
+  header_text_color:         '#ffffff',
+  header_alignment:          'center',
+  header_show_logo:          'true',
+  header_show_search:        'true',
+  header_show_notifications: 'true',
+  header_cta_button_text:    '',
+  header_cta_button_color:   '#8a2be2',
+  footer_background_color:   '#0f172a',
+  footer_text_color:         '#94a3b8',
+  footer_company_email:      'info@prms.com',
+  footer_company_phone:      '',
+  footer_company_address:    '',
+  footer_copyright_text:     '2026 Customizable Property Rental Management System. All rights reserved.',
+  homepage_hero_title:       'Find Your Perfect Rental Property',
+  homepage_hero_subtitle:    'Discover top-quality rental properties tailored to your lifestyle and budget',
+  homepage_hero_image:       'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1600&auto=format&fit=crop',
+  homepage_hero_button_text: 'Browse Properties',
+  homepage_hero_button_link: '/properties',
+  homepage_hero_text_alignment: 'left',
+  homepage_hero_background_color: '',
+  homepage_about_title:      'About Us',
+  homepage_about_description: 'We are dedicated to making property rental simple, transparent, and efficient for everyone.',
+  homepage_about_image:      '',
+  homepage_about_alignment:  'left',
+  feature_payments:          'true',
+  feature_maintenance:       'true',
+  feature_messaging:         'true',
+  feature_notifications:     'true',
+  feature_analytics:         'true',
+  feature_recommendations:   'true',
+  feature_maps:              'true',
+  general_currency:          'MYR',
+  general_timezone:          'Asia/Kuala_Lumpur',
+  general_language:          'en',
+  general_contact_email:     'info@prms.com',
+};
+
+export function SettingsProvider({ children }) {
+  const [settingsObj, setSettingsObj] = useState(DEFAULTS);
+  const [settingsRaw, setSettingsRaw] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  /* Convert flat key-value object to CSS variables applied to <html> */
+  const applyCssVariables = useCallback((settings) => {
+    const root = document.documentElement;
+    for (const [key, cssVar] of Object.entries(THEME_VARIABLE_MAP)) {
+      const val = settings[key];
+      if (val) {
+        root.style.setProperty(cssVar, val);
+      }
+    }
+
+    /* Apply font family to body */
+    if (settings.theme_font_family) {
+      document.body.style.fontFamily = settings.theme_font_family;
+    }
+
+    /* Apply background color to body */
+    if (settings.theme_background_color) {
+      document.body.style.background = settings.theme_background_color;
+    }
+
+    /* Apply text color */
+    if (settings.theme_text_color) {
+      document.body.style.color = settings.theme_text_color;
+    }
+
+    /* Update favicon if configured */
+    if (settings.branding_favicon_url) {
+      let favicon = document.querySelector('link[rel="icon"]');
+      if (!favicon) {
+        favicon = document.createElement('link');
+        favicon.rel = 'icon';
+        document.head.appendChild(favicon);
+      }
+      favicon.href = settings.branding_favicon_url;
+    }
+
+    /* Update site title if configured */
+    if (settings.branding_site_name) {
+      document.title = settings.branding_site_name;
+    }
+  }, []);
+
+  /* Load settings from API */
+  const loadSettings = useCallback(async (target = 'public') => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const apiCall = target === 'public'
+        ? adminApi.getPublicSettings()
+        : adminApi.getSettings();
+
+      const response = await apiCall;
+      const data = response.data?.data || [];
+
+      /* Build flat key-value object */
+      const flat = { ...DEFAULTS };
+      for (const item of data) {
+        flat[item.key] = item.value;
+      }
+
+      setSettingsObj(flat);
+      setSettingsRaw(data);
+      applyCssVariables(flat);
+    } catch (err) {
+      setError(err.message || 'Failed to load settings');
+      /* Still apply defaults */
+      applyCssVariables(DEFAULTS);
+    } finally {
+      setLoading(false);
+    }
+  }, [applyCssVariables]);
+
+  /* Update a single setting (live preview mode) */
+  const updateSetting = useCallback(async (key, value) => {
+    const updated = { ...settingsObj, [key]: value };
+    setSettingsObj(updated);
+    applyCssVariables(updated);
+
+    /* Optimistic update in raw data */
+    setSettingsRaw(prev => prev.map(s => s.key === key ? { ...s, value } : s));
+
+    /* Persist to backend */
+    try {
+      await adminApi.updateSetting({ key, value });
+    } catch (err) {
+      /* Revert on failure */
+      const reverted = { ...DEFAULTS };
+      const rawBeforeError = settingsRaw;
+      for (const item of rawBeforeError) {
+        reverted[item.key] = item.value;
+      }
+      setSettingsObj(reverted);
+      setError('Failed to save setting: ' + err.message);
+    }
+  }, [settingsObj, settingsRaw, applyCssVariables]);
+
+  /* Batch update multiple settings */
+  const bulkUpdateSettings = useCallback(async (settingsArray) => {
+    try {
+      await adminApi.bulkUpdateSettings(settingsArray);
+      const updated = { ...settingsObj };
+      for (const { key, value } of settingsArray) {
+        updated[key] = value;
+      }
+      setSettingsObj(updated);
+      applyCssVariables(updated);
+    } catch (err) {
+      setError('Failed to bulk update settings: ' + err.message);
+    }
+  }, [settingsObj, applyCssVariables]);
+
+  /* Load settings on mount */
+  useEffect(() => {
+    loadSettings('public');
+  }, [loadSettings]);
+
+  const value = useMemo(() => ({
+    settings: settingsObj,
+    settingsRaw,
+    loading,
+    error,
+    updateSetting,
+    bulkUpdateSettings,
+    loadSettings,
+    get: (key, fallback = '') => settingsObj[key] ?? fallback,
+    getBool: (key, fallback = false) => {
+      const val = settingsObj[key];
+      if (val === undefined) return fallback;
+      return String(val).toLowerCase() === 'true';
+    },
+  }), [settingsObj, settingsRaw, loading, error, updateSetting, bulkUpdateSettings, loadSettings]);
+
+  return (
+    <SettingsContext.Provider value={value}>
+      {children}
+    </SettingsContext.Provider>
+  );
+}
+
+export function useSettings() {
+  const ctx = useContext(SettingsContext);
+  if (!ctx) {
+    throw new Error('useSettings must be used within SettingsProvider');
+  }
+  return ctx;
+}

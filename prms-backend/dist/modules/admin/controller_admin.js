@@ -47,6 +47,35 @@ class AdminController {
                 res.status(500).json({ success: false, error: { message: error.message } });
             }
         };
+        this.getSettingsByCategory = async (req, res) => {
+            try {
+                const { category } = req.params;
+                const settings = await adminService.getSystemSettingsByCategory(String(category));
+                res.json((0, response_1.successResponse)(settings));
+            }
+            catch (error) {
+                res.status(500).json({ success: false, error: { message: error.message } });
+            }
+        };
+        this.getPublicSettings = async (req, res) => {
+            try {
+                const settings = await adminService.getPublicSystemSettings();
+                res.json((0, response_1.successResponse)(settings));
+            }
+            catch (error) {
+                res.status(500).json({ success: false, error: { message: error.message } });
+            }
+        };
+        this.bulkUpdateSettings = async (req, res) => {
+            try {
+                const settingsList = req.body.settings || req.body;
+                const updated = await adminService.bulkUpdateSystemSettings(settingsList);
+                res.json((0, response_1.successResponse)(updated, 'Settings updated'));
+            }
+            catch (error) {
+                res.status(400).json({ success: false, error: { message: error.message } });
+            }
+        };
         this.updateSetting = async (req, res) => {
             try {
                 const { key, value } = req.body;
@@ -102,6 +131,15 @@ class AdminController {
             try {
                 await adminService.markAllNotificationsRead(req.user.id);
                 res.json((0, response_1.successResponse)(null, 'All notifications marked as read'));
+            }
+            catch (error) {
+                res.status(400).json({ success: false, error: { message: error.message } });
+            }
+        };
+        this.dismissNotification = async (req, res) => {
+            try {
+                await adminService.dismissNotification(String(req.params.id));
+                res.json((0, response_1.successResponse)(null, 'Notification dismissed'));
             }
             catch (error) {
                 res.status(400).json({ success: false, error: { message: error.message } });

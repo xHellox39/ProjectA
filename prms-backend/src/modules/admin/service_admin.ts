@@ -12,6 +12,44 @@ export async function addSystemSetting(key: string, value: string, category = 'g
   return prisma.systemSetting.create({ data: { key, value, category, description } });
 }
 
+export async function getSystemSettingsByCategory(category: string) {
+  return prisma.systemSetting.findMany({
+    where: { category },
+    orderBy: { key: 'asc' },
+  });
+}
+
+// Categories safe for public consumption (no sensitive internal config)
+const publicCategories = ['theme', 'branding', 'header', 'footer', 'homepage', 'features'];
+
+export async function getPublicSystemSettings() {
+  return prisma.systemSetting.findMany({
+    where: { category: { in: publicCategories } },
+    orderBy: { key: 'asc' },
+  });
+}
+
+export async function bulkUpdateSystemSettings(settingsList: Array<Record<string, unknown>>) {
+  if (!Array.isArray(settingsList)) {
+    throw new Error('Settings must be an array');
+  }
+
+  const results = await Promise.all(
+    settingsList.map(async ({ key, value }) => {
+      if (!key || value === undefined) return null;
+      const strKey = String(key);
+      const strValue = String(value);
+      return prisma.systemSetting.upsert({
+        where: { key: strKey },
+        update: { value: strValue },
+        create: { key: strKey, value: strValue, category: 'general' },
+      });
+    }),
+  );
+
+  return results.filter(Boolean);
+}
+
 export async function getAuditLogs(page = 1, limit = 50, entity?: string) {
   const where: any = {};
   if (entity) where.entity = entity;

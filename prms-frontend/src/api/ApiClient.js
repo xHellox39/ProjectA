@@ -33,6 +33,8 @@ apiClient.interceptors.request.use(
 let isRefreshing = false;
 let failedQueue = [];
 
+/* Hydration flag set by AuthContext — shared via window __prmsHydrating */
+
 const processQueue = (error, token = null) => {
   failedQueue.forEach((prom) => {
     if (error) prom.reject(error);
@@ -59,6 +61,11 @@ apiClient.interceptors.response.use(
 
     // 401 — try to refresh token once
     if (error.response?.status === 401 && !original._retry) {
+      // During hydration, skip interceptor logout — let AuthContext handle it
+      if (window.__prmsHydrating && original.url === '/auth/me') {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -75,10 +82,15 @@ apiClient.interceptors.response.use(
 
       try {
         const data = await refreshToken();
-        const newToken = data.accessToken || data.token;
+        // Backend wraps in successResponse: { success, message, data: { tokens } }
+        const tokens = data?.data?.tokens || data?.tokens;
+        const newToken = tokens?.accessToken;
+        if (!newToken) {
+          throw new Error('No access token in refresh response');
+        }
         localStorage.setItem('accessToken', newToken);
-        if (data.refreshToken) {
-          localStorage.setItem('refreshToken', data.refreshToken);
+        if (tokens?.refreshToken) {
+          localStorage.setItem('refreshToken', tokens.refreshToken);
         }
         processQueue(null, newToken);
         original.headers.Authorization = `Bearer ${newToken}`;
@@ -108,7 +120,7 @@ apiClient.interceptors.response.use(
 function logoutUser() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
-  window.location.href = '/login';
+  window.location.replace('/login');
 }
 
 /* Unified error extraction so callers get a string message */

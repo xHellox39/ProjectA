@@ -13,6 +13,7 @@ exports.apiLimiter = (0, express_rate_limit_1.default)({
         success: false,
         error: { message: 'Too many requests. Please try again later.' },
     },
+    skip: (req) => req.url.startsWith('/auth/login') || req.url.startsWith('/auth/register') || req.url.startsWith('/auth/refresh'),
     standardHeaders: true,
     legacyHeaders: false,
 });

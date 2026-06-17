@@ -198,6 +198,8 @@ function AuthProvider({ children }) {
       return;
     }
 
+    // Mark hydration flag so the Axios interceptor skips logout during this call
+    window.__prmsHydrating = true;
     authApi
       .getMe()
       .then(({ data }) => {
@@ -212,6 +214,9 @@ function AuthProvider({ children }) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+      })
+      .finally(() => {
+        window.__prmsHydrating = false;
       });
   }, []);
 

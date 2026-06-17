@@ -5,8 +5,17 @@ export const adminApi = {
   getSettings() {
     return apiClient.get('/admin/settings');
   },
+  getSettingsByCategory(category) {
+    return apiClient.get(`/admin/settings/category/${category}`);
+  },
+  getPublicSettings() {
+    return apiClient.get('/admin/settings/public');
+  },
   updateSetting(data) {
     return apiClient.put('/admin/settings', data);
+  },
+  bulkUpdateSettings(dataArray) {
+    return apiClient.put('/admin/settings/bulk', { settings: dataArray });
   },
   addSetting(data) {
     return apiClient.post('/admin/settings', data);

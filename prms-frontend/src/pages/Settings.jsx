@@ -114,7 +114,10 @@ function Settings() {
               <h2>System Preferences</h2>
               <p>Adjust dashboard layout, property display, language, and system theme.</p>
 
-              <button type="button">Manage Preferences</button>
+              <button type="button" onClick={() => {
+                const base = dashboardPath === '/tenant' ? '/tenant' : dashboardPath === '/landlord' ? '/landlord' : '/admin';
+                navigate(`${base}/settings/customizer`);
+              }}>Manage Preferences</button>
             </div>
           </section>
         </div>

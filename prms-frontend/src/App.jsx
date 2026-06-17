@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute';
 import PageTransition from './components/PageTransition';
 import PublicPageTransition from './components/PublicPageTransition';
@@ -27,6 +28,7 @@ import TenantSimplePage from './pages/TenantSimplePage';
 /*  Shared  */
 import Properties from './pages/Properties';
 import Settings from './pages/Settings';
+import WebsiteCustomizer from './pages/WebsiteCustomizer';
 
 function AppRoutes() {
   const { loading, user } = useAuth();
@@ -92,6 +94,7 @@ function AppRoutes() {
         <Route path="messages" element={<AdminSimplePage label="Admin Messages" />} />
         <Route path="reports" element={<AdminSimplePage label="Reports & Audit" />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="settings/customizer" element={<WebsiteCustomizer />} />
         <Route path="help" element={<AdminSimplePage label="Admin Help Center" />} />
       </Route>
 
@@ -111,6 +114,7 @@ function AppRoutes() {
         <Route path="maintenance" element={<LandlordSimplePage label="Maintenance Requests" />} />
         <Route path="messages" element={<LandlordSimplePage label="Messages" />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="settings/customizer" element={<WebsiteCustomizer />} />
         <Route path="help" element={<LandlordSimplePage label="Help Center" />} />
       </Route>
 
@@ -130,6 +134,7 @@ function AppRoutes() {
         <Route path="maintenance" element={<TenantSimplePage label="Maintenance Requests" />} />
         <Route path="messages" element={<TenantSimplePage label="Messages" />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="settings/customizer" element={<WebsiteCustomizer />} />
         <Route path="help" element={<TenantSimplePage label="Help Center" />} />
       </Route>
 
@@ -142,9 +147,11 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <SettingsProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </SettingsProvider>
     </BrowserRouter>
   );
 }
