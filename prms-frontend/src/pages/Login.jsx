@@ -37,8 +37,9 @@ function Login() {
     clearError();
     try {
       const googleAuth = await signInWithGoogle();
-      await googleLogin(googleAuth.idToken, navigate);
-    } catch (err) {
+      await googleLogin(googleAuth,navigate);
+    } 
+    catch (err) {
       console.error('Google login failed', err);
     }
   }

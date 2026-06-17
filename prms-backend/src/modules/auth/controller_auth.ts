@@ -105,35 +105,103 @@ export class AuthController {
   /* AUTH-009: Google OAuth login */
   googleLogin = async (req: Request, res: Response) => {
     try {
-      const { idToken } = req.body;
-      if (!idToken) throw new Error('Firebase ID token required');
+      const { idToken, email, displayName } = req.body;
 
-      // Verify the Firebase ID token (Google provider)
-      const firebaseUid = await verifyFirebaseToken(idToken);
-
-      // Find or create user by firebase_uid
+      let firebaseUid: string;
+  
+      if (env.ENABLE_FIREBASE_VERIFY === true) {
+        if (!idToken) {
+          throw new Error('Firebase ID token required');
+        }
+        
+        firebaseUid = await verifyFirebaseToken(idToken);
+      } 
+      else {
+        console.warn('[DEV MODE] Firebase verification disabled');
+        
+        if (!email) {
+          throw new Error('Email is required when Firebase verification is disabled');
+        }
+        
+        firebaseUid = `dev-${email.toLowerCase()}`;
+      }
+      
+      //Step 1 - Find by firebase_uid
       let user = await prisma.user.findUnique({
         where: { firebase_uid: firebaseUid },
-        include: { UserRole: { include: { role: true } } },
+        include: {
+          UserRole: {
+            include: { role: true }
+          }
+        }
       });
 
-      if (!user) {
-        // Auto-register new Google user as Tenant
-        user = await prisma.user.create({
-          data: {
-            firebase_uid: firebaseUid,
-            email: req.body.email || '',
-            full_name: req.body.displayName || '',
-            passwordHash: null,
+      // Step 2 - Not found, find by email
+      if (!user && email) {
+        user = await prisma.user.findUnique({
+          where: { email },
+          include: {
             UserRole: {
-              create: {
-                role: { connect: { name: 'Tenant' } },
-              },
-            },
+              include: { role: true }
+            }
+          }
+        }
+      );
+      
+      // Existing email account
+      if (user) {
+        // Already linked to another Google account?
+        if (
+          user.firebase_uid &&
+          user.firebase_uid !== firebaseUid
+        ) {
+          throw new Error('Google account already linked');
+        }
+
+        // Link Google account
+        user = await prisma.user.update({
+          where: {
+            id: user.id
           },
-          include: { UserRole: { include: { role: true } } },
-        });
+          data: {
+            firebase_uid: firebaseUid
+          },
+          include: {
+            UserRole: {
+          include: { role: true }
+        }
       }
+    });
+  }
+}
+
+// Step 3 - Create new user
+if (!user) {
+
+  user = await prisma.user.create({
+    data: {
+      firebase_uid: firebaseUid,
+      email,
+      full_name: displayName || '',
+      passwordHash: null,
+
+      UserRole: {
+        create: {
+          role: {
+            connect: {
+              name: 'Tenant'
+            }
+          }
+        }
+      }
+    },
+    include: {
+      UserRole: {
+        include: { role: true }
+      }
+    }
+  });
+}
 
       if (!user.is_active) throw new Error('Account is suspended');
 

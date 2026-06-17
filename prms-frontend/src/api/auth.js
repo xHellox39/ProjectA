@@ -15,8 +15,12 @@ export const authApi = {
 
   login: ({ email, password }) => apiClient.post('/auth/login', { email, password }),
 
-  googleLogin(idToken) {
-    return apiClient.post('/auth/google', { idToken });
+  googleLogin(googleAuth) {
+    return apiClient.post('/auth/google', {
+      idToken: googleAuth.idToken,
+      email: googleAuth.email,
+      displayName: googleAuth.displayName,
+    });
   },
 
   refresh({ refreshToken }) {

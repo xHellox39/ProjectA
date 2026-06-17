@@ -9,7 +9,7 @@ export async function registerUser(email: string, password: string, full_name?: 
   if (existing) throw new Error('Email already registered');
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const firebase_uid = uuidv4();
+  const firebase_uid = "";
 
   const user = await prisma.user.create({
     data: {

@@ -121,11 +121,11 @@ function AuthProvider({ children }) {
   /* ------ Google Login (AUTH-009) ------ */
 
   const googleLogin = useCallback(
-    async (idToken, navigate) => {
+    async (googleAuth, navigate) => {
       dispatch({ type: ACTIONS.SET_LOADING, payload: true });
       dispatch({ type: ACTIONS.CLEAR_ERROR });
       try {
-        const { data } = await authApi.googleLogin(idToken);
+        const { data } = await authApi.googleLogin(googleAuth);
 
         // Store tokens
         const tokens = data?.data?.tokens || data?.tokens;
