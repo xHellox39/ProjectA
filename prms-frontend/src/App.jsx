@@ -1,159 +1,121 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { SettingsProvider } from './contexts/SettingsContext';
-import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute';
-import PageTransition from './components/PageTransition';
-import PublicPageTransition from './components/PublicPageTransition';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { AnimatePresence } from 'framer-motion'
 
-/*  Public pages  */
-import Login from './pages/Login';
-import Register from './pages/Register';
-import RoleSelection from './pages/RoleSelection';
+import GuestHome from './pages/GuestHome'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import RoleSelection from './pages/RoleSelection'
 
-/*  Admin  */
-import AdminLayout from './components/AdminLayout';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminSimplePage from './pages/AdminSimplePage';
+import AdminLayout from './components/AdminLayout'
+import AdminDashboard from './pages/AdminDashboard'
+import AdminSimplePage from './pages/AdminSimplePage'
 
-/*  Landlord  */
-import LandlordLayout from './components/LandlordLayout';
-import LandlordDashboard from './pages/LandlordDashboard';
-import LandlordSimplePage from './pages/LandlordSimplePage';
+import LandlordLayout from './components/LandlordLayout'
+import LandlordDashboard from './pages/LandlordDashboard'
+import LandlordSimplePage from './pages/LandlordSimplePage'
 
-/*  Tenant  */
-import TenantLayout from './components/TenantLayout';
-import TenantDashboard from './pages/TenantDashboard';
-import TenantSimplePage from './pages/TenantSimplePage';
+import TenantLayout from './components/TenantLayout'
+import TenantDashboard from './pages/TenantDashboard'
+import TenantSimplePage from './pages/TenantSimplePage'
 
-/*  Shared  */
-import Properties from './pages/Properties';
-import Settings from './pages/Settings';
-import WebsiteCustomizer from './pages/WebsiteCustomizer';
+import Properties from './pages/Properties'
+import PublicPageTransition from './components/PublicPageTransition'
 
 function AppRoutes() {
-  const { loading, user } = useAuth();
-
-  /* Block rendering routes until hydration is done */
-  if (loading) {
-    return (
-      <div className="app-loading">
-        <div className="spinner" />
-        <p>Loading PRMS...</p>
-      </div>
-    );
-  }
+  const location = useLocation()
+  const isPublicPage =
+    location.pathname === '/' ||
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/role'
 
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
-
-      {/*  Public routes (auth-001: RoleSelection -> Register -> Login)  */}
-      <Route
-        path="/role-selection"
-        element={
-          <PublicRoute>
+    <AnimatePresence mode="wait" initial={false}>
+      <Routes location={location} key={isPublicPage ? location.pathname : 'dashboard-routes'}>
+        <Route
+          path="/"
+          element={
             <PublicPageTransition>
-              <RoleSelection />
+              <GuestHome />
             </PublicPageTransition>
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
+          }
+        />
+
+        <Route
+          path="/login"
+          element={
             <PublicPageTransition>
               <Login />
             </PublicPageTransition>
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <PublicRoute>
+          }
+        />
+
+        <Route
+          path="/register"
+          element={
             <PublicPageTransition>
               <Register />
             </PublicPageTransition>
-          </PublicRoute>
-        }
-      />
+          }
+        />
 
-      {/*  Admin routes (AUTH-006: role-protected)  */}
-      <Route
-        path="/admin"
-        element={<ProtectedRoute allowedRoles={['Admin']}><AdminLayout /></ProtectedRoute>}
-      >
-        <Route index element={<AdminDashboard />} />
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="users" element={<AdminSimplePage label="User Management" />} />
-        <Route path="properties" element={<Properties />} />
-        <Route path="bookings" element={<AdminSimplePage label="Booking Management" />} />
-        <Route path="finance" element={<AdminSimplePage label="Finance Console" />} />
-        <Route path="maintenance" element={<AdminSimplePage label="Maintenance Center" />} />
-        <Route path="messages" element={<AdminSimplePage label="Admin Messages" />} />
-        <Route path="reports" element={<AdminSimplePage label="Reports & Audit" />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="settings/customizer" element={<WebsiteCustomizer />} />
-        <Route path="help" element={<AdminSimplePage label="Admin Help Center" />} />
-      </Route>
+        <Route
+          path="/role"
+          element={
+            <PublicPageTransition>
+              <RoleSelection />
+            </PublicPageTransition>
+          }
+        />
 
-      {/*  Landlord routes (AUTH-006: role-protected)  */}
-      <Route
-        path="/landlord/*"
-        element={
-          <ProtectedRoute allowedRoles={['Landlord']}>
-            <LandlordLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<LandlordDashboard />} />
-        <Route path="properties" element={<Properties />} />
-        <Route path="bookings" element={<LandlordSimplePage label="My Bookings" />} />
-        <Route path="finance" element={<LandlordSimplePage label="Finance & Payments" />} />
-        <Route path="maintenance" element={<LandlordSimplePage label="Maintenance Requests" />} />
-        <Route path="messages" element={<LandlordSimplePage label="Messages" />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="settings/customizer" element={<WebsiteCustomizer />} />
-        <Route path="help" element={<LandlordSimplePage label="Help Center" />} />
-      </Route>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<AdminSimplePage type="users" />} />
+          <Route path="properties" element={<AdminSimplePage type="properties" />} />
+          <Route path="bookings" element={<AdminSimplePage type="bookings" />} />
+          <Route path="finance" element={<AdminSimplePage type="finance" />} />
+          <Route path="maintenance" element={<AdminSimplePage type="maintenance" />} />
+          <Route path="messages" element={<AdminSimplePage type="messages" />} />
+          <Route path="reports" element={<AdminSimplePage type="reports" />} />
+          <Route path="settings" element={<AdminSimplePage type="settings" />} />
+          <Route path="help" element={<AdminSimplePage type="help" />} />
+        </Route>
 
-      {/*  Tenant routes (AUTH-006: role-protected)  */}
-      <Route
-        path="/tenant/*"
-        element={
-          <ProtectedRoute allowedRoles={['Tenant']}>
-            <TenantLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<TenantDashboard />} />
-        <Route path="properties" element={<Properties />} />
-        <Route path="bookings" element={<TenantSimplePage label="My Bookings" />} />
-        <Route path="payments" element={<TenantSimplePage label="Payments" />} />
-        <Route path="maintenance" element={<TenantSimplePage label="Maintenance Requests" />} />
-        <Route path="messages" element={<TenantSimplePage label="Messages" />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="settings/customizer" element={<WebsiteCustomizer />} />
-        <Route path="help" element={<TenantSimplePage label="Help Center" />} />
-      </Route>
+        <Route path="/landlord" element={<LandlordLayout />}>
+          <Route index element={<LandlordDashboard />} />
+          <Route path="properties" element={<LandlordSimplePage type="properties" />} />
+          <Route path="bookings" element={<LandlordSimplePage type="bookings" />} />
+          <Route path="finance" element={<LandlordSimplePage type="finance" />} />
+          <Route path="maintenance" element={<LandlordSimplePage type="maintenance" />} />
+          <Route path="messages" element={<LandlordSimplePage type="messages" />} />
+          <Route path="settings" element={<LandlordSimplePage type="settings" />} />
+          <Route path="help" element={<LandlordSimplePage type="help" />} />
+        </Route>
 
-      {/*  Fallback  */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
-  );
+        <Route path="/tenant" element={<TenantLayout />}>
+          <Route index element={<TenantDashboard />} />
+          <Route path="properties" element={<Properties />} />
+          <Route path="bookings" element={<TenantSimplePage type="bookings" />} />
+          <Route path="payments" element={<TenantSimplePage type="payments" />} />
+          <Route path="maintenance" element={<TenantSimplePage type="maintenance" />} />
+          <Route path="messages" element={<TenantSimplePage type="messages" />} />
+          <Route path="settings" element={<TenantSimplePage type="settings" />} />
+          <Route path="help" element={<TenantSimplePage type="help" />} />
+        </Route>
+
+        <Route path="/properties" element={<Navigate to="/tenant/properties" />} />
+        <Route path="/settings" element={<Navigate to="/admin/settings" />} />
+      </Routes>
+    </AnimatePresence>
+  )
 }
 
 function App() {
   return (
     <BrowserRouter>
-      <SettingsProvider>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </SettingsProvider>
+      <AppRoutes />
     </BrowserRouter>
-  );
+  )
 }
 
-export default App;
+export default App

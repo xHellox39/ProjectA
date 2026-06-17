@@ -1,0 +1,382 @@
+import { Link, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import {
+  ArrowRight,
+  Banknote,
+  Building2,
+  CheckCircle2,
+  MapPin,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  UserRoundCheck,
+} from 'lucide-react'
+import './GuestHome.css'
+
+function GuestHome() {
+  const navigate = useNavigate()
+
+  const neighbourhoods = [
+    {
+      name: 'Bukit Bintang',
+      tag: 'City Center',
+      listings: '428 verified listings',
+      image:
+        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80',
+    },
+    {
+      name: 'Mont Kiara',
+      tag: 'Expat Choice',
+      listings: '315 verified listings',
+      image:
+        'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=900&q=80',
+    },
+    {
+      name: 'Bangsar',
+      tag: 'Premium Living',
+      listings: '192 verified listings',
+      image:
+        'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80',
+    },
+  ]
+
+  const homes = [
+    {
+      title: 'Luxury Condo in Kuala Lumpur',
+      location: 'KLCC, Kuala Lumpur',
+      price: 'RM 2,500 / month',
+      rating: '4.92',
+      image:
+        'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80',
+    },
+    {
+      title: 'Modern Loft Apartment',
+      location: 'Bukit Bintang',
+      price: 'RM 1,850 / month',
+      rating: '4.87',
+      image:
+        'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80',
+    },
+    {
+      title: 'Premium Studio Residence',
+      location: 'Mont Kiara',
+      price: 'RM 2,200 / month',
+      rating: '4.95',
+      image:
+        'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=900&q=80',
+    },
+    {
+      title: 'Family Home with Pool',
+      location: 'Petaling Jaya',
+      price: 'RM 3,800 / month',
+      rating: '4.91',
+      image:
+        'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80',
+    },
+  ]
+
+  function handleSearch() {
+    navigate('/tenant/properties')
+  }
+
+  return (
+    <main className="guest-page">
+      <header className="guest-navbar">
+        <Link to="/" className="guest-logo">
+          PRMS
+        </Link>
+
+        <nav>
+          <a href="#find-home" className="active">
+            Find a Home
+          </a>
+          <a href="#landlords">For Landlords</a>
+          <a href="#insights">Market Insights</a>
+          <a href="#help">Help Center</a>
+        </nav>
+
+        <div className="guest-nav-actions">
+          <Link to="/login" className="guest-signin">
+            Sign In
+          </Link>
+
+          <Link to="/register" className="guest-join-btn">
+            Join Now
+          </Link>
+        </div>
+      </header>
+
+      <section className="guest-hero" id="find-home">
+        <div className="guest-hero-overlay"></div>
+
+        <motion.div
+          className="guest-hero-content"
+          initial={{ opacity: 0, y: 34 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, ease: 'easeOut' }}
+        >
+          <motion.div
+            className="guest-hero-badge"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18, duration: 0.45 }}
+          >
+            <Sparkles size={17} />
+            Malaysia Property Rental Platform
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 26 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.28, duration: 0.55 }}
+          >
+            Find Your Perfect Space in Malaysia&apos;s Most Trusted Ecosystem.
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 26 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.55 }}
+          >
+            Experience seamless property discovery with PRMS. Browse verified
+            homes, compare listings, and connect with trusted landlords.
+          </motion.p>
+
+          <motion.div
+            className="guest-search-box"
+            initial={{ opacity: 0, y: 26, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.55, duration: 0.5 }}
+          >
+            <div className="guest-search-input">
+              <MapPin size={20} />
+              <input type="text" placeholder="Enter neighborhood or property type..." />
+            </div>
+
+            <motion.button
+              type="button"
+              onClick={handleSearch}
+              whileHover={{ y: -2, scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+            >
+              <Search size={18} />
+              Search
+            </motion.button>
+          </motion.div>
+        </motion.div>
+      </section>
+
+      <section className="guest-trust-bar">
+        <div>
+          <ShieldCheck size={20} />
+          Bank-Level Security
+        </div>
+
+        <div>
+          <UserRoundCheck size={20} />
+          KYC Verified Entities
+        </div>
+
+        <div>
+          <CheckCircle2 size={20} />
+          24/7 Local Support
+        </div>
+
+        <div>
+          <Banknote size={20} />
+          Bank Negara Compliant
+        </div>
+      </section>
+
+      <section className="guest-section guest-role-section" id="landlords">
+        <motion.div
+          className="guest-section-title"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+        >
+          <h2>Tailored Solutions for Every Role</h2>
+          <span></span>
+        </motion.div>
+
+        <div className="guest-role-grid">
+          <motion.article
+            className="guest-role-card tenant"
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.45 }}
+            whileHover={{ y: -8 }}
+          >
+            <div className="guest-role-icon">
+              <UserRoundCheck size={27} />
+            </div>
+
+            <h3>For Tenants</h3>
+            <p>
+              Browse thousands of verified listings, book instantly, and manage
+              your stay with reminders, payments, and localized maps.
+            </p>
+
+            <div className="guest-map-preview">
+              <MapPin size={38} />
+              <span>Verified property area</span>
+            </div>
+
+            <Link to="/tenant/properties">
+              Explore Verified Listings <ArrowRight size={18} />
+            </Link>
+          </motion.article>
+
+          <motion.article
+            className="guest-role-card landlord"
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1, duration: 0.45 }}
+            whileHover={{ y: -8 }}
+          >
+            <div className="guest-role-icon dark">
+              <Building2 size={27} />
+            </div>
+
+            <h3>For Landlords</h3>
+            <p>
+              Maximize your property&apos;s potential with listing management,
+              occupancy tracking, tenant screening, and automated reporting.
+            </p>
+
+            <div className="guest-revenue-card">
+              <p>Total Revenue MYR</p>
+              <h4>RM 142,500.00</h4>
+              <div className="guest-bars">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+
+            <Link to="/register">
+              Professional Listing Portal <ArrowRight size={18} />
+            </Link>
+          </motion.article>
+        </div>
+      </section>
+
+      <section className="guest-section guest-listings-section">
+        <div className="guest-section-header">
+          <div>
+            <h2>Popular Homes in Kuala Lumpur</h2>
+            <p>Explore verified properties inspired by modern rental platforms.</p>
+          </div>
+
+          <button type="button" onClick={handleSearch}>
+            View All Homes
+          </button>
+        </div>
+
+        <div className="guest-home-row">
+          {homes.map((home, index) => (
+            <motion.article
+              className="guest-home-card"
+              key={home.title}
+              initial={{ opacity: 0, y: 26 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.08, duration: 0.4 }}
+              whileHover={{ y: -7 }}
+            >
+              <div className="guest-home-image">
+                <img src={home.image} alt={home.title} />
+                <span>Guest favorite</span>
+              </div>
+
+              <h3>{home.title}</h3>
+              <p>{home.location}</p>
+
+              <div className="guest-home-meta">
+                <strong>{home.price}</strong>
+                <span>★ {home.rating}</span>
+              </div>
+            </motion.article>
+          ))}
+        </div>
+      </section>
+
+      <section className="guest-section guest-neighbourhood-section" id="insights">
+        <div className="guest-section-header">
+          <div>
+            <h2>Explore Prime Neighborhoods</h2>
+            <p>Discover the heart of Kuala Lumpur&apos;s living spaces.</p>
+          </div>
+
+          <button type="button" onClick={handleSearch}>
+            View All Areas
+          </button>
+        </div>
+
+        <div className="guest-neighbourhood-grid">
+          {neighbourhoods.map((item, index) => (
+            <motion.article
+              className="guest-neighbourhood-card"
+              key={item.name}
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.1, duration: 0.45 }}
+              whileHover={{ y: -8, scale: 1.015 }}
+            >
+              <img src={item.image} alt={item.name} />
+              <div></div>
+
+              <section>
+                <span>{item.tag}</span>
+                <h3>{item.name}</h3>
+                <p>{item.listings}</p>
+              </section>
+            </motion.article>
+          ))}
+        </div>
+      </section>
+
+      <section className="guest-cta">
+        <motion.div
+          initial={{ opacity: 0, y: 26 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+        >
+          <h2>Ready to start your journey?</h2>
+          <p>
+            Join PRMS Malaysia today and experience the future of localized
+            property management.
+          </p>
+
+          <div>
+            <Link to="/register">Sign Up for Free</Link>
+            <button type="button" onClick={handleSearch}>
+              Explore Properties
+            </button>
+          </div>
+        </motion.div>
+      </section>
+
+      <footer className="guest-footer" id="help">
+        <h3>PRMS Malaysia</h3>
+
+        <nav>
+          <a href="#">Terms of Service</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Tenant Rights MY</a>
+          <a href="#">Landlord Guidelines</a>
+          <a href="#">Contact Us</a>
+        </nav>
+      </footer>
+    </main>
+  )
+}
+
+export default GuestHome
