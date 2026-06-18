@@ -39,4 +39,12 @@ export const adminApi = {
   dismiss(id) {
     return apiClient.delete(`/admin/notifications/${id}`);
   },
+
+  /* Dashboard / Reporting (proxied through /reports) */
+  getDashboardStats() {
+    return apiClient.get('/reports/dashboard');
+  },
+  getRevenueReport() {
+    return apiClient.get('/reports/revenue');
+  },
 };

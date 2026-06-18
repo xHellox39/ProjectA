@@ -70,16 +70,56 @@ export async function getCurrentUser(userId: string) {
     where: { id: userId },
     select: {
       id: true, email: true, full_name: true, phone: true,
-      profile_img_url: true, is_active: true, created_at: true,
+      profile_img_url: true, firebase_uid: true, is_active: true, created_at: true,
       UserRole: { include: { role: true } },
     },
   });
 }
 
-export async function updateUserProfile(userId: string, data: { full_name?: string; phone?: string; profile_img_url?: string }) {
-  return prisma.user.update({ where: { id: userId }, data });
+export async function updateUserProfile(
+  userId: string,
+  data: { full_name?: string; phone?: string; profile_img_url?: string; role?: string }
+) {
+  // If role is provided, update the UserRole association
+  if (data.role) {
+    await prisma.userRole.upsert({
+      where: { userId },
+      update: { role: { connect: { name: data.role } } },
+      create: {
+        userId,
+        role: { connect: { name: data.role } },
+      },
+    });
+  }
+
+  const { role, ...userFields } = data;
+  return prisma.user.update({
+    where: { id: userId },
+    data: userFields,
+    include: {
+      UserRole: { include: { role: true } },
+    },
+  });
 }
 
 export async function logoutUser(userId: string) {
   await prisma.user.update({ where: { id: userId }, data: { refreshToken: null } });
+}
+
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.passwordHash) throw new Error('Password-based account required');
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) throw new Error('Current password is incorrect');
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  return prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: newHash },
+  });
 }

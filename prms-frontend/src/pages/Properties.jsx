@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Building2,
@@ -26,6 +27,7 @@ const PROPERTY_TYPES = [
 ]
 
 function Properties() {
+  const navigate = useNavigate()
   const [properties, setProperties] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -101,7 +103,7 @@ function Properties() {
         <motion.button
           type="button"
           className="btn-primary"
-          onClick={() => alert('Create property modal coming soon')}
+          onClick={() => navigate('add')}
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.97 }}
         >

@@ -6,9 +6,13 @@ import PageTransition from './components/PageTransition';
 import PublicPageTransition from './components/PublicPageTransition';
 
 /*  Public pages  */
+import GuestHome from './pages/GuestHome';
+import GuestProperties from './pages/GuestProperties';
+import PropertyDetail from './pages/PropertyDetail';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import RoleSelection from './pages/RoleSelection';
+import NotFound from './pages/NotFound';
 
 /*  Admin  */
 import AdminLayout from './components/AdminLayout';
@@ -29,6 +33,8 @@ import TenantSimplePage from './pages/TenantSimplePage';
 import Properties from './pages/Properties';
 import Settings from './pages/Settings';
 import WebsiteCustomizer from './pages/WebsiteCustomizer';
+import AddProperty from './pages/AddProperty';
+import Profile from './pages/Profile';
 
 function AppRoutes() {
   const { loading, user } = useAuth();
@@ -45,7 +51,14 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/*  Issue #1: GuestHome is the default landing page  */}
+      <Route path="/" element={<GuestHome />} />
+
+      {/*  Issue #5: Public guest-properties route  */}
+      <Route path="/properties" element={<GuestProperties />} />
+
+      {/*  Issue #12: PropertyDetail page  */}
+      <Route path="/properties/:id" element={<PropertyDetail />} />
 
       {/*  Public routes (auth-001: RoleSelection -> Register -> Login)  */}
       <Route
@@ -81,12 +94,13 @@ function AppRoutes() {
 
       {/*  Admin routes (AUTH-006: role-protected)  */}
       <Route
-        path="/admin"
+        path="/admin/*"
         element={<ProtectedRoute allowedRoles={['Admin']}><AdminLayout /></ProtectedRoute>}
       >
         <Route index element={<AdminDashboard />} />
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="users" element={<AdminSimplePage label="User Management" />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="properties" element={<Properties />} />
         <Route path="bookings" element={<AdminSimplePage label="Booking Management" />} />
         <Route path="finance" element={<AdminSimplePage label="Finance Console" />} />
@@ -108,7 +122,9 @@ function AppRoutes() {
         }
       >
         <Route index element={<LandlordDashboard />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="properties" element={<Properties />} />
+        <Route path="properties/add" element={<AddProperty />} />
         <Route path="bookings" element={<LandlordSimplePage label="My Bookings" />} />
         <Route path="finance" element={<LandlordSimplePage label="Finance & Payments" />} />
         <Route path="maintenance" element={<LandlordSimplePage label="Maintenance Requests" />} />
@@ -128,6 +144,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<TenantDashboard />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="properties" element={<Properties />} />
         <Route path="bookings" element={<TenantSimplePage label="My Bookings" />} />
         <Route path="payments" element={<TenantSimplePage label="Payments" />} />
@@ -138,8 +155,8 @@ function AppRoutes() {
         <Route path="help" element={<TenantSimplePage label="Help Center" />} />
       </Route>
 
-      {/*  Fallback  */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/*  Issue #30: Fallback to 404 NotFound  */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

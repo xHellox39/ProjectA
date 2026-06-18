@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -17,6 +17,14 @@ import { useAuth } from '../contexts/AuthContext';
 function Register() {
   const navigate = useNavigate();
   const { register, error, clearError } = useAuth();
+
+  /* Issue #2: Redirect to /role-selection if user skipped role pick */
+  useEffect(() => {
+    const selected = localStorage.getItem('prmsSelectedRole');
+    if (!selected) {
+      navigate('/role-selection', { replace: true });
+    }
+  }, [navigate]);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -62,6 +70,10 @@ function Register() {
 
     if (!result.success) {
       clearError();
+    } else {
+      /* Issue #7: Clear onboarding state after successful registration */
+      localStorage.removeItem('prmsSelectedRole');
+      localStorage.removeItem('prmsOnboarding');
     }
 
     setSubmitting(false);

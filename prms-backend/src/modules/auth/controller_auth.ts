@@ -39,7 +39,13 @@ export class AuthController {
       const tokens = authService.generateTokens(user.id);
       await authService.saveRefreshToken(user.id, tokens.refreshToken);
       res.json(successResponse({
-        user: { id: user.id, email: user.email, full_name: user.full_name, role: user.UserRole[0]?.role.name },
+        user: {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          firebase_uid: user.firebase_uid,
+          role: user.UserRole[0]?.role.name,
+        },
         tokens,
       }, 'Login successful'));
     } catch (error: any) {
@@ -77,6 +83,7 @@ export class AuthController {
         full_name: user.full_name,
         phone: user.phone,
         profile_img_url: user.profile_img_url,
+        firebase_uid: user.firebase_uid,
         role: user.UserRole[0]?.role.name || 'Tenant',
       }));
     } catch (error: any) {
@@ -102,106 +109,110 @@ export class AuthController {
     }
   };
 
+  changePassword = async (req: AuthRequest, res: Response) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ success: false, error: { message: 'Current and new password required' } });
+      }
+      await authService.changePassword(req.user!.id, currentPassword, newPassword);
+      res.json(successResponse(null, 'Password changed successfully'));
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: { message: error.message } });
+    }
+  };
+
   /* AUTH-009: Google OAuth login */
   googleLogin = async (req: Request, res: Response) => {
     try {
       const { idToken, email, displayName } = req.body;
 
+      let isNewUser = false;
       let firebaseUid: string;
-  
+
       if (env.ENABLE_FIREBASE_VERIFY === true) {
         if (!idToken) {
           throw new Error('Firebase ID token required');
         }
-        
+
         firebaseUid = await verifyFirebaseToken(idToken);
-      } 
-      else {
+      } else {
         console.warn('[DEV MODE] Firebase verification disabled');
-        
+
         if (!email) {
           throw new Error('Email is required when Firebase verification is disabled');
         }
-        
+
         firebaseUid = `dev-${email.toLowerCase()}`;
       }
-      
-      //Step 1 - Find by firebase_uid
+
+      // Step 1: find by firebase_uid
       let user = await prisma.user.findUnique({
         where: { firebase_uid: firebaseUid },
         include: {
           UserRole: {
-            include: { role: true }
-          }
-        }
+            include: { role: true },
+          },
+        },
       });
 
-      // Step 2 - Not found, find by email
+      // Step 2: not found, find by email
       if (!user && email) {
         user = await prisma.user.findUnique({
           where: { email },
           include: {
             UserRole: {
-              include: { role: true }
-            }
-          }
-        }
-      );
-      
-      // Existing email account
-      if (user) {
-        // Already linked to another Google account?
-        if (
-          user.firebase_uid &&
-          user.firebase_uid !== firebaseUid
-        ) {
-          throw new Error('Google account already linked');
-        }
-
-        // Link Google account
-        user = await prisma.user.update({
-          where: {
-            id: user.id
+              include: { role: true },
+            },
           },
+        });
+
+        // Existing email account
+        if (user) {
+          // Already linked to another Google account?
+          if (user.firebase_uid && user.firebase_uid !== firebaseUid) {
+            throw new Error('Google account already linked');
+          }
+
+          // Link Google account
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { firebase_uid: firebaseUid },
+            include: {
+              UserRole: {
+                include: { role: true },
+              },
+            },
+          });
+        }
+      }
+
+      // Step 3: create new user
+      if (!user) {
+        isNewUser = true;
+        user = await prisma.user.create({
           data: {
-            firebase_uid: firebaseUid
+            firebase_uid: firebaseUid,
+            email,
+            full_name: displayName || '',
+            passwordHash: null,
+            UserRole: {
+              create: {
+                role: {
+                  connect: {
+                    name: 'Tenant',
+                  },
+                },
+              },
+            },
           },
           include: {
             UserRole: {
-          include: { role: true }
-        }
+              include: { role: true },
+            },
+          },
+        });
       }
-    });
-  }
-}
-
-// Step 3 - Create new user
-if (!user) {
-
-  user = await prisma.user.create({
-    data: {
-      firebase_uid: firebaseUid,
-      email,
-      full_name: displayName || '',
-      passwordHash: null,
-
-      UserRole: {
-        create: {
-          role: {
-            connect: {
-              name: 'Tenant'
-            }
-          }
-        }
-      }
-    },
-    include: {
-      UserRole: {
-        include: { role: true }
-      }
-    }
-  });
-}
 
       if (!user.is_active) throw new Error('Account is suspended');
 
@@ -218,6 +229,7 @@ if (!user) {
           role: user.UserRole[0]?.role.name || 'Tenant',
         },
         tokens,
+        isNewUser: !!isNewUser,
       }));
     } catch (error: any) {
       res.status(400).json({ success: false, error: { message: error.message } });

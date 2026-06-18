@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { authApi, getApiError } from '../api';
+import { roleToPath } from '../config/routes';
 
 /* ------ Actions ------ */
 
@@ -57,6 +58,7 @@ function AuthProvider({ children }) {
       full_name: user.full_name,
       phone: user.phone,
       profile_img_url: user.profile_img_url,
+      firebase_uid: user.firebase_uid,
       role: user.role || 'Tenant',
     };
   }
@@ -127,12 +129,15 @@ function AuthProvider({ children }) {
       try {
         const { data } = await authApi.googleLogin(googleAuth);
 
-        // Store tokens
+        // Store tokens — successResponse wraps in {success, message, data: {user, tokens, isNewUser}}
         const tokens = data?.data?.tokens || data?.tokens;
         if (tokens) {
           localStorage.setItem('accessToken', tokens.accessToken);
           localStorage.setItem('refreshToken', tokens.refreshToken);
         }
+
+        // Issue #3: isNewUser flag from backend
+        const isNewUser = !!data?.data?.isNewUser;
 
         // Fetch current user with normalized shape
         const { data: meData } = await authApi.getMe();
@@ -141,11 +146,17 @@ function AuthProvider({ children }) {
         dispatch({ type: ACTIONS.SET_USER, payload: user });
 
         if (navigate && user) {
-          const path = roleToPath(user.role);
-          navigate(path);
+          // Issue #3: New Google users go to role-selection for onboarding
+          if (isNewUser) {
+            localStorage.setItem('prmsOnboarding', 'true');
+            navigate('/role-selection');
+          } else {
+            const path = roleToPath(user.role);
+            navigate(path);
+          }
         }
 
-        return { success: true, user };
+        return { success: true, user, isNewUser };
       } catch (err) {
         const msg = getApiError(err);
         dispatch({ type: ACTIONS.SET_ERROR, payload: msg });
@@ -169,6 +180,7 @@ function AuthProvider({ children }) {
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('prmsDashboardPath');
       localStorage.removeItem('prmsSelectedRole');
+      localStorage.removeItem('prmsOnboarding');
       navigate?.('/login');
       dispatch({ type: ACTIONS.LOGOUT });
     },
@@ -183,6 +195,19 @@ function AuthProvider({ children }) {
       const updated = normalizeUser(res);
       dispatch({ type: ACTIONS.SET_USER, payload: updated });
       return { success: true, user: updated };
+    } catch (err) {
+      const msg = getApiError(err);
+      dispatch({ type: ACTIONS.SET_ERROR, payload: msg });
+      return { success: false, error: msg };
+    }
+  }, []);
+
+  /* ------ Change password ------ */
+
+  const changePassword = useCallback(async ({ currentPassword, newPassword }) => {
+    try {
+      await authApi.changePassword({ currentPassword, newPassword });
+      return { success: true };
     } catch (err) {
       const msg = getApiError(err);
       dispatch({ type: ACTIONS.SET_ERROR, payload: msg });
@@ -232,6 +257,7 @@ function AuthProvider({ children }) {
     googleLogin,
     logout,
     updateProfile,
+    changePassword,
     clearError: () => dispatch({ type: ACTIONS.CLEAR_ERROR }),
   };
 
@@ -246,15 +272,4 @@ function useAuth() {
   return ctx;
 }
 
-/* ------ Helpers ------ */
-
-function roleToPath(role) {
-  if (!role) return '/login';
-  const lower = role.toLowerCase();
-  if (lower.includes('landlord')) return '/landlord';
-  if (lower.includes('tenant')) return '/tenant';
-  if (lower.includes('admin')) return '/admin';
-  return '/login';
-}
-
-export { AuthProvider, useAuth, AuthContext, roleToPath };
+export { AuthProvider, useAuth, AuthContext };

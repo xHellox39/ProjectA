@@ -523,3 +523,139 @@
     flex-direction: column;
   }
 }
+
+/* Image placeholder (no image) */
+.image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+  color: #9333ea;
+}
+
+/* Filter badge dot */
+.filter-badge {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9333ea;
+  margin-left: 4px;
+}
+
+/* Expandable filter panel */
+.filter-panel-expanded {
+  padding: 0 32px 22px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fafafa;
+  overflow: hidden;
+  overflow: hidden;
+}
+
+.filter-panel-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.filter-group {
+  margin-bottom: 18px;
+}
+
+.filter-group h3 {
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0 0 12px;
+  color: #111827;
+}
+
+.filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-options button {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  background: white;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-options button:hover {
+  border-color: #9333ea;
+  color: #9333ea;
+}
+
+.filter-options button.active {
+  background: #9333ea;
+  color: white;
+  border-color: #9333ea;
+}
+
+.reset-filters-btn {
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: #9333ea;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.filter-count {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Loading state */
+.guest-properties-loading,
+.guest-properties-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: 16px;
+  color: #64748b;
+}
+
+.guest-properties-error button {
+  padding: 10px 24px;
+  background: #9333ea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* No properties matching filters */
+.no-properties {
+  text-align: center;
+  padding: 60px 24px;
+}
+
+.no-properties h3 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 16px 0 8px;
+  color: #111827;
+}
+
+.no-properties p {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}

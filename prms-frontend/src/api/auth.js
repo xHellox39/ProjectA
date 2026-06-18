@@ -38,4 +38,11 @@ export const authApi = {
   updateMe(data) {
     return apiClient.put('/auth/me', data);
   },
+
+  changePassword({ currentPassword, newPassword }) {
+    return apiClient.post('/auth/change-password', {
+      currentPassword,
+      newPassword,
+    });
+  },
 };

@@ -104,7 +104,12 @@ function AdminLayout() {
           <div className="admin-layout-top-actions">
             <NotificationDropdown />
 
-            <motion.div className="admin-layout-avatar" whileHover={{ scale: 1.08 }}>
+            <motion.div
+              className="admin-layout-avatar"
+              whileHover={{ scale: 1.08 }}
+              style={{ cursor: 'pointer' }}
+              onClick={() => safeNavigate('/admin/profile')}
+            >
               {initials}
             </motion.div>
           </div>

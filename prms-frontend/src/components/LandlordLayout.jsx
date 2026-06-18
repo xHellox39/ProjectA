@@ -9,6 +9,7 @@ import PageTransition from './PageTransition'
 import { useAuth } from '../contexts/AuthContext'
 import { buildNavItems, resolveActivePage } from './NavigationConfig'
 import NotificationDropdown from './NotificationDropdown'
+import ProfileDropdown from './ProfileDropdown'
 import './LandlordLayout.css'
 
 function LandlordLayout() {
@@ -94,15 +95,7 @@ function LandlordLayout() {
 
           <div className="landlord-layout-actions">
             <NotificationDropdown />
-
-            <motion.div className="landlord-layout-profile" whileHover={{ scale: 1.02 }}>
-              <div>
-                <h3>{displayName}</h3>
-                <p>{role}</p>
-              </div>
-
-              <div className="landlord-layout-avatar">{initials}</div>
-            </motion.div>
+            <ProfileDropdown prefix="/landlord" />
           </div>
         </header>
 

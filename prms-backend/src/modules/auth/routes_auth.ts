@@ -12,6 +12,7 @@ router.post('/refresh', refreshBody, auth.refresh);
 router.post('/logout', authenticate, auth.logout);
 router.get('/me', authenticate, auth.getMe);
 router.put('/me', authenticate, auth.updateMe);
+router.post('/change-password', authenticate, auth.changePassword);
 router.post('/google', auth.googleLogin);
 
 export default router;

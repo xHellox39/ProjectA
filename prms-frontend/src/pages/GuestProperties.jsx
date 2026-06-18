@@ -1,5 +1,6 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Building2,
   CalendarDays,
@@ -7,6 +8,7 @@ import {
   Globe2,
   Heart,
   Home,
+  Loader2,
   MapPin,
   Menu,
   Search,
@@ -16,95 +18,129 @@ import {
   Star,
   UserCircle,
   Users,
-} from 'lucide-react'
-import './GuestProperties.css'
+  X,
+} from 'lucide-react';
+import { propertyApi, searchApi } from '../api';
+import './GuestProperties.css';
+
+const PRICE_RANGES = [
+  { label: 'Under RM 1,500', min: 0, max: 1500 },
+  { label: 'RM 1,500 - RM 2,500', min: 1500, max: 2500 },
+  { label: 'RM 2,500 - RM 3,500', min: 2500, max: 3500 },
+  { label: 'RM 3,500 - RM 5,000', min: 3500, max: 5000 },
+  { label: 'Over RM 5,000', min: 5000, max: Infinity },
+];
+
+const PROPERTY_TYPES = ['apartment', 'condo', 'serviced residence', 'studio', 'loft', 'house', 'other'];
 
 function GuestProperties() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const areas = [
-    'Kuala Lumpur',
-    'Bukit Bintang',
-    'Mont Kiara',
-    'Bangsar',
-    'Petaling Jaya',
-    'Malacca',
-  ]
+  /* Issue #14: Filter state */
+  const [searchQuery, setSearchQuery] = useState('');
+  const [priceFilter, setPriceFilter] = useState(null);
+  const [typeFilter, setTypeFilter] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
 
-  const homes = [
-    {
-      title: 'Luxury Condo near KLCC',
-      area: 'Kuala Lumpur',
-      price: 'RM 2,800 / month',
-      rating: '4.96',
-      type: 'Entire apartment',
-      image:
-        'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80',
-    },
-    {
-      title: 'Modern Loft in Bukit Bintang',
-      area: 'Bukit Bintang',
-      price: 'RM 2,100 / month',
-      rating: '4.91',
-      type: 'Loft apartment',
-      image:
-        'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80',
-    },
-    {
-      title: 'Premium Residence in Mont Kiara',
-      area: 'Mont Kiara',
-      price: 'RM 3,200 / month',
-      rating: '4.98',
-      type: 'Serviced residence',
-      image:
-        'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=900&q=80',
-    },
-    {
-      title: 'Family Home with Private Pool',
-      area: 'Petaling Jaya',
-      price: 'RM 4,500 / month',
-      rating: '4.88',
-      type: 'Landed house',
-      image:
-        'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80',
-    },
-    {
-      title: 'Cozy Studio for City Living',
-      area: 'Bangsar',
-      price: 'RM 1,650 / month',
-      rating: '4.84',
-      type: 'Studio unit',
-      image:
-        'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80',
-    },
-    {
-      title: 'Weekend Apartment in Malacca',
-      area: 'Malacca',
-      price: 'RM 950 / month',
-      rating: '4.79',
-      type: 'Apartment',
-      image:
-        'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?auto=format&fit=crop&w=900&q=80',
-    },
-    {
-      title: 'Minimalist Condo with Balcony',
-      area: 'Kuala Lumpur',
-      price: 'RM 2,350 / month',
-      rating: '4.93',
-      type: 'Condominium',
-      image:
-        'https://images.unsplash.com/photo-1560448075-bb485b067938?auto=format&fit=crop&w=900&q=80',
-    },
-    {
-      title: 'Peaceful High-Rise Residence',
-      area: 'Mont Kiara',
-      price: 'RM 2,950 / month',
-      rating: '4.89',
-      type: 'High-rise unit',
-      image:
-        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80',
-    },
-  ]
+  /* Issue #13: Fetch real data */
+  const fetchProperties = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await propertyApi.list({ limit: 50 });
+      if (res?.data?.data) {
+        setProperties(res.data.data);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error?.message || 'Failed to load properties');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
+
+  /* Issue #14: Apply filters */
+  const filteredProperties = useMemo(() => {
+    return properties.filter((p) => {
+      /* Search by title, city, state, address */
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const searchable = [p.title, p.city, p.state, p.address]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!searchable.includes(q)) return false;
+      }
+
+      /* Price range filter */
+      if (priceFilter !== null) {
+        const range = PRICE_RANGES[priceFilter];
+        if (range && (p.rent < range.min || p.rent > range.max)) return false;
+      }
+
+      /* Property type filter */
+      if (typeFilter) {
+        const pType = (p.property_type || '').toLowerCase();
+        if (!pType.includes(typeFilter.toLowerCase())) return false;
+      }
+
+      /* Status filter */
+      if (statusFilter) {
+        if (p.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
+      }
+
+      return true;
+    });
+  }, [properties, searchQuery, priceFilter, typeFilter, statusFilter]);
+
+  /* Collect unique cities for area tabs */
+  const cities = useMemo(() => {
+    const citySet = new Set();
+    properties.forEach((p) => {
+      if (p.city) citySet.add(p.city);
+    });
+    return Array.from(citySet).slice(0, 6);
+  }, [properties]);
+
+  /* Currency formatter */
+  const formatRent = (rent) => {
+    try {
+      return new Intl.NumberFormat('ms-MY', {
+        style: 'currency',
+        currency: 'MYR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(rent);
+    } catch {
+      return `RM ${Math.round(rent)}`;
+    }
+  };
+
+  /* Status display */
+  const statusInfo = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'available') return { text: 'Available now', color: '#3C9B4D' };
+    if (s === 'occupied') return { text: 'Occupied', color: '#F29F05' };
+    if (s === 'maintenance') return { text: 'Maintenance', color: '#D8554F' };
+    return { text: 'Unknown', color: '#666' };
+  };
+
+  /* Reset filters */
+  const resetFilters = () => {
+    setSearchQuery('');
+    setPriceFilter(null);
+    setTypeFilter(null);
+    setStatusFilter(null);
+  };
+
+  const hasActiveFilters = searchQuery || priceFilter !== null || typeFilter || statusFilter;
 
   return (
     <main className="guest-properties-page">
@@ -118,12 +154,10 @@ function GuestProperties() {
             <Home size={22} />
             Homes
           </button>
-
           <button type="button">
             <Sparkles size={22} />
             Experiences
           </button>
-
           <button type="button">
             <Building2 size={22} />
             Services
@@ -132,17 +166,14 @@ function GuestProperties() {
 
         <div className="guest-properties-actions">
           <Link to="/register">Become a host</Link>
-
           <button type="button" className="circle-btn">
             <Globe2 size={21} />
           </button>
-
           <div className="guest-user-menu">
             <button type="button" className="menu-btn">
               <Menu size={22} />
               <UserCircle size={28} />
             </button>
-
             <div className="guest-menu-dropdown">
               <Link to="/register">Join now</Link>
               <Link to="/login">Log in</Link>
@@ -155,148 +186,250 @@ function GuestProperties() {
         </div>
       </header>
 
+      {/* Issue #13: Search panel connected to data */}
       <section className="guest-search-panel">
         <div className="guest-search-pill">
           <div>
             <span>Where</span>
-            <input type="text" placeholder="Search destinations" />
+            <input
+              type="text"
+              placeholder="Search destinations"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-
-          <div>
-            <span>When</span>
-            <p>Add dates</p>
-          </div>
-
-          <div>
-            <span>Who</span>
-            <p>Add guests</p>
-          </div>
-
           <motion.button
             type="button"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.94 }}
+            onClick={() => {}}
           >
             <Search size={22} />
           </motion.button>
         </div>
       </section>
 
+      {/* Filter bar with area tabs */}
       <section className="guest-filter-bar">
         <div className="guest-area-tabs">
-          {areas.map((area, index) => (
-            <button type="button" className={index === 0 ? 'active' : ''} key={area}>
-              {area}
+          {cities.map((city, index) => (
+            <button
+              type="button"
+              className={searchQuery === city ? 'active' : ''}
+              key={city}
+              onClick={() => setSearchQuery(searchQuery === city ? '' : city)}
+            >
+              {city}
             </button>
           ))}
         </div>
 
-        <button type="button" className="filter-btn">
+        <button
+          type="button"
+          className="filter-btn"
+          onClick={() => setShowFilters(!showFilters)}
+        >
           <SlidersHorizontal size={19} />
           Filters
+          {hasActiveFilters && <span className="filter-badge" />}
         </button>
       </section>
 
-      <section className="guest-listing-section">
-        <div className="guest-listing-title">
-          <div>
-            <h1>Popular homes in Kuala Lumpur</h1>
-            <p>Verified rental homes managed under PRMS Malaysia.</p>
-          </div>
-
-          <div className="guest-safe-badge">
-            <ShieldCheck size={19} />
-            Verified listings
-          </div>
-        </div>
-
-        <div className="guest-property-grid">
-          {homes.map((home, index) => (
-            <motion.article
-              className="guest-property-card"
-              key={home.title}
-              initial={{ opacity: 0, y: 28 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.35 }}
-              whileHover={{ y: -7 }}
-            >
-              <div className="guest-property-image">
-                <img src={home.image} alt={home.title} />
-
-                <button type="button" className="heart-btn">
-                  <Heart size={21} />
+      {/* Issue #14: Expandable filter panel */}
+      {showFilters && (
+        <motion.section
+          className="filter-panel-expanded"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+        >
+          <div className="filter-panel-inner">
+            <div className="filter-group">
+              <h3>Price range</h3>
+              <div className="filter-options">
+                <button
+                  type="button"
+                  className={priceFilter === null ? 'active' : ''}
+                  onClick={() => setPriceFilter(null)}
+                >
+                  Any price
                 </button>
-
-                <span>Guest favorite</span>
+                {PRICE_RANGES.map((range, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={priceFilter === idx ? 'active' : ''}
+                    onClick={() => setPriceFilter(priceFilter === idx ? null : idx)}
+                  >
+                    {range.label}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div className="guest-property-body">
-                <div className="guest-property-main">
-                  <h3>{home.title}</h3>
-
-                  <div>
-                    <Star size={15} />
-                    {home.rating}
-                  </div>
-                </div>
-
-                <p>
-                  <MapPin size={15} />
-                  {home.area}
-                </p>
-
-                <p>
-                  <CalendarDays size={15} />
-                  Available now
-                </p>
-
-                <p>
-                  <Users size={15} />
-                  {home.type}
-                </p>
-
-                <strong>{home.price}</strong>
+            <div className="filter-group">
+              <h3>Property type</h3>
+              <div className="filter-options">
+                <button
+                  type="button"
+                  className={!typeFilter ? 'active' : ''}
+                  onClick={() => setTypeFilter(null)}
+                >
+                  Any type
+                </button>
+                {PROPERTY_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    className={typeFilter === type ? 'active' : ''}
+                    onClick={() => setTypeFilter(typeFilter === type ? null : type)}
+                  >
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </button>
+                ))}
               </div>
-            </motion.article>
-          ))}
+            </div>
+
+            <div className="filter-group">
+              <h3>Availability</h3>
+              <div className="filter-options">
+                <button
+                  type="button"
+                  className={!statusFilter ? 'active' : ''}
+                  onClick={() => setStatusFilter(null)}
+                >
+                  Any status
+                </button>
+                <button
+                  type="button"
+                  className={statusFilter === 'AVAILABLE' ? 'active' : ''}
+                  onClick={() => setStatusFilter(statusFilter === 'AVAILABLE' ? null : 'AVAILABLE')}
+                >
+                  Available only
+                </button>
+              </div>
+            </div>
+
+            {hasActiveFilters && (
+              <button type="button" className="reset-filters-btn" onClick={resetFilters}>
+                <X size={14} />
+                Clear all filters
+              </button>
+            )}
+
+            <p className="filter-count">
+              Showing {filteredProperties.length} of {properties.length} properties
+            </p>
+          </div>
+        </motion.section>
+      )}
+
+      {/* Loading state */}
+      {loading && (
+        <div className="guest-properties-loading">
+          <Loader2 size={32} className="spin" />
+          <p>Loading properties...</p>
         </div>
-      </section>
+      )}
 
-      <section className="guest-listing-section weekend">
-        <div className="guest-listing-title">
-          <div>
-            <h2>Available in Malacca this weekend</h2>
-            <p>Short-stay style property preview for guest browsing.</p>
+      {/* Error state */}
+      {error && !loading && (
+        <div className="guest-properties-error">
+          <p>{error}</p>
+          <button onClick={fetchProperties}>Try again</button>
+        </div>
+      )}
+
+      {/* Issue #13: Property listing with real data */}
+      {!loading && !error && (
+        <section className="guest-listing-section">
+          <div className="guest-listing-title">
+            <div>
+              <h1>
+                {filteredProperties.length === properties.length
+                  ? 'Popular homes in Malaysia'
+                  : `${filteredProperties.length} properties found`}
+              </h1>
+              <p>Verified rental homes managed under PRMS Malaysia.</p>
+            </div>
+            <div className="guest-safe-badge">
+              <ShieldCheck size={19} />
+              Verified listings
+            </div>
           </div>
 
-          <button type="button" onClick={() => navigate('/register')}>
-            Join PRMS <ChevronDown size={18} />
-          </button>
-        </div>
+          {filteredProperties.length === 0 ? (
+            <div className="no-properties">
+              <p>No properties match your filters.</p>
+              <button onClick={resetFilters}>Reset filters</button>
+            </div>
+          ) : (
+            <div className="guest-property-grid">
+              {filteredProperties.map((property, index) => {
+                const status = statusInfo(property.status);
+                const firstImg = property.images?.[0]?.url || '';
+                return (
+                  <motion.article
+                    key={property.id}
+                    className="guest-property-card"
+                    initial={{ opacity: 0, y: 28 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03, duration: 0.35 }}
+                    whileHover={{ y: -7 }}
+                    onClick={() => navigate(`/properties/${property.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="guest-property-image">
+                      {firstImg ? (
+                        <img src={firstImg} alt={property.title} />
+                      ) : (
+                        <div className="image-placeholder">
+                          <Building2 size={48} />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="heart-btn"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Heart size={21} />
+                      </button>
+                    </div>
 
-        <div className="guest-mini-row">
-          {homes.slice(2, 6).map((home, index) => (
-            <motion.article
-              className="guest-mini-card"
-              key={`mini-${home.title}`}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.08, duration: 0.35 }}
-              whileHover={{ y: -6 }}
-            >
-              <img src={home.image} alt={home.title} />
+                    <div className="guest-property-body">
+                      <div className="guest-property-main">
+                        <h3>{property.title}</h3>
+                      </div>
 
-              <div>
-                <h3>{home.title}</h3>
-                <p>{home.price}</p>
-              </div>
-            </motion.article>
-          ))}
-        </div>
-      </section>
+                      <p>
+                        <MapPin size={15} />
+                        {property.city
+                          ? `${property.city}${property.state ? `, ${property.state}` : ''}`
+                          : property.address}
+                      </p>
+
+                      <p>
+                        <CalendarDays size={15} />
+                        <span style={{ color: status.color }}>{status.text}</span>
+                      </p>
+
+                      <p>
+                        <Users size={15} />
+                        {(property.property_type || 'Apartment').charAt(0).toUpperCase() +
+                          (property.property_type || 'Apartment').slice(1)}
+                      </p>
+
+                      <strong>{formatRent(property.rent)} / month</strong>
+                    </div>
+                  </motion.article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
     </main>
-  )
+  );
 }
 
-export default GuestProperties
+export default GuestProperties;

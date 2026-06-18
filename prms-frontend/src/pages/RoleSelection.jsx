@@ -1,17 +1,21 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   ArrowRight,
   BriefcaseBusiness,
   Building2,
   Home,
   User,
-} from 'lucide-react'
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { roleToPath } from '../config/routes';
 
 function RoleSelection() {
-  const navigate = useNavigate()
-  const [selectedRole, setSelectedRole] = useState('admin')
+  const navigate = useNavigate();
+  const { user, updateProfile } = useAuth();
+  /* Issue #4: Default to null so user must explicitly pick a role */
+  const [selectedRole, setSelectedRole] = useState(null);
 
   const roles = [
     {
@@ -37,13 +41,28 @@ function RoleSelection() {
     },
   ]
 
-  function handleContinue() {
-    const role = roles.find((item) => item.key === selectedRole)
-    const title = role?.title || 'Tenant'
+  async function handleContinue() {
+    /* Issue #4: Guard — don't proceed without role selection */
+    if (!selectedRole) return;
 
-    /* Save selected role title (capitalized) so Register can use it */
-    localStorage.setItem('prmsSelectedRole', title)
-    navigate('/register')
+    const role = roles.find((item) => item.key === selectedRole);
+    const title = role?.title || 'Tenant';
+
+    /* Issue #3: Check if this is a Google onboarding flow (already authenticated) */
+    const isOnboarding = localStorage.getItem('prmsOnboarding') === 'true';
+
+    if (isOnboarding) {
+      /* Update user's role from default Tenant to selected role */
+      await updateProfile({ role: title });
+      /* Clear onboarding flags */
+      localStorage.removeItem('prmsOnboarding');
+      /* Navigate to the selected role's dashboard */
+      navigate(roleToPath(title));
+    } else {
+      /* Regular registration flow: save role and go to Register */
+      localStorage.setItem('prmsSelectedRole', title);
+      navigate('/register');
+    }
   }
 
   return (
@@ -168,11 +187,13 @@ function RoleSelection() {
             type="button"
             className="continue-btn"
             onClick={handleContinue}
+            disabled={!selectedRole}
+            style={selectedRole ? {} : { opacity: 0.5, cursor: 'not-allowed' }}
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 1.02, duration: 0.35 }}
-            whileHover={{ y: -3, scale: 1.01 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={selectedRole ? { y: -3, scale: 1.01 } : {}}
+            whileTap={selectedRole ? { scale: 0.97 } : {}}
           >
             Continue <ArrowRight size={24} />
           </motion.button>
