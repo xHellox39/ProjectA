@@ -1,13 +1,18 @@
 import { apiClient } from './ApiClient';
 
 export const searchApi = {
+  /* Multi-property search via /search endpoint (backend: modules/search/routes_search.ts) */
   search(params) {
     return apiClient.get('/search', { params });
   },
-  getFavorites() {
-    return apiClient.get('/search/favorites');
+
+  /* Fallback: when /search unavailable, use regular properties list with filters */
+  listWithFilters(params) {
+    return apiClient.get('/properties', { params });
   },
-  toggleFavorite(propertyId) {
-    return apiClient.post(`/search/favorites/${propertyId}/toggle`);
+
+  /* Search suggestions - uses search endpoint with q param */
+  suggestions(query) {
+    return apiClient.get('/search', { params: { q: query, limit: 10 } });
   },
 };

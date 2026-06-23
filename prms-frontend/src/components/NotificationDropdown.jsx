@@ -23,6 +23,33 @@ export default function NotificationDropdown() {
     return () => { cancelled = true }
   }, [])
 
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      adminApi.getNotifications()
+        .then(res => {
+          const items = res?.data?.data || res?.data || []
+          setNotifs(items)
+        })
+        .catch(() => { /* ignore */ })
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Refresh when dropdown is opened
+  useEffect(() => {
+    if (!opened) return
+    const timeout = setTimeout(() => {
+      adminApi.getNotifications()
+        .then(res => {
+          const items = res?.data?.data || res?.data || []
+          setNotifs(items)
+        })
+        .catch(() => { /* ignore */ })
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [opened])
+
   async function handleMarkAsRead(id) {
     try {
       await adminApi.markAsRead(id)

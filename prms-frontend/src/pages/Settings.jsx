@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useSettings } from '../contexts/SettingsContext'
 import {
   Bell,
   Building2,
@@ -14,7 +15,9 @@ import './Settings.css'
 
 function Settings() {
   const navigate = useNavigate()
+  const { settings, updateSetting } = useSettings()
   const dashboardPath = localStorage.getItem('prmsDashboardPath') || '/admin'
+  const siteName = settings?.branding_site_name || 'PRMS'
 
   return (
     <main className="admin-shell">
@@ -53,9 +56,9 @@ function Settings() {
       <section className="admin-main">
         <header className="admin-topbar">
           <div className="admin-brand" onClick={() => navigate(dashboardPath)}>
-            <h2>PRMS</h2>
+            <h2>{siteName}</h2>
             <span></span>
-            <p>PRMS Settings</p>
+            <p>{siteName} Settings</p>
           </div>
 
           <div className="admin-top-actions">

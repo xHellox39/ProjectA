@@ -35,6 +35,8 @@ import Settings from './pages/Settings';
 import WebsiteCustomizer from './pages/WebsiteCustomizer';
 import AddProperty from './pages/AddProperty';
 import Profile from './pages/Profile';
+import SearchPage from './pages/SearchPage';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function AppRoutes() {
   const { loading, user } = useAuth();
@@ -95,7 +97,13 @@ function AppRoutes() {
       {/*  Admin routes (AUTH-006: role-protected)  */}
       <Route
         path="/admin/*"
-        element={<ProtectedRoute allowedRoles={['Admin']}><AdminLayout /></ProtectedRoute>}
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <ErrorBoundary>
+              <AdminLayout />
+            </ErrorBoundary>
+          </ProtectedRoute>
+        }
       >
         <Route index element={<AdminDashboard />} />
         <Route path="dashboard" element={<AdminDashboard />} />
@@ -117,7 +125,9 @@ function AppRoutes() {
         path="/landlord/*"
         element={
           <ProtectedRoute allowedRoles={['Landlord']}>
-            <LandlordLayout />
+            <ErrorBoundary>
+              <LandlordLayout />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       >
@@ -139,7 +149,9 @@ function AppRoutes() {
         path="/tenant/*"
         element={
           <ProtectedRoute allowedRoles={['Tenant']}>
-            <TenantLayout />
+            <ErrorBoundary>
+              <TenantLayout />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       >
@@ -155,6 +167,9 @@ function AppRoutes() {
         <Route path="help" element={<TenantSimplePage label="Help Center" />} />
       </Route>
 
+      {/*  Search page (public)  */}
+      <Route path="/search" element={<SearchPage />} />
+
       {/*  Issue #30: Fallback to 404 NotFound  */}
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -164,11 +179,13 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <SettingsProvider>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </SettingsProvider>
+      <ErrorBoundary>
+        <SettingsProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </SettingsProvider>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }

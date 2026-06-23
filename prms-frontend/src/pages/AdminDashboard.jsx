@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useSettings } from '../contexts/SettingsContext'
 import {
   Download,
   Gauge,
@@ -11,6 +12,7 @@ import {
 import './AdminDashboard.css'
 
 function AdminDashboard() {
+  const { settings } = useSettings()
   useEffect(() => {
     localStorage.setItem('prmsDashboardPath', '/admin')
   }, [])

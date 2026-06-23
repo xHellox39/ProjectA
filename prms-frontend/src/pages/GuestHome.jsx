@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useSettings } from '../contexts/SettingsContext'
 import {
   ArrowRight,
   Banknote,
@@ -15,6 +16,14 @@ import './GuestHome.css'
 
 function GuestHome() {
   const navigate = useNavigate()
+  const { settings, loadSettings } = useSettings()
+
+  /* Fallback hero content from settings */
+  const heroTitle = settings?.homepage_hero_title || 'Find Your Perfect Space in Malaysia\'s Most Trusted Ecosystem.'
+  const heroSubtitle = settings?.homepage_hero_subtitle || 'Experience seamless property discovery with PRMS. Browse verified homes, compare listings, and connect with trusted landlords.'
+  const heroButtonText = settings?.homepage_hero_button_text || 'Browse Properties'
+  const heroButtonLink = settings?.homepage_hero_button_link || '/search'
+  const heroImage = settings?.homepage_hero_image || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1600&auto=format&fit=crop'
 
   const neighbourhoods = [
     {
@@ -76,7 +85,7 @@ function GuestHome() {
   ]
 
   function handleSearch() {
-    navigate('/properties')
+    navigate('/search')
   }
 
   return (
@@ -130,7 +139,7 @@ function GuestHome() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.28, duration: 0.55 }}
           >
-            Find Your Perfect Space in Malaysia&apos;s Most Trusted Ecosystem.
+            {heroTitle}
           </motion.h1>
 
           <motion.p
@@ -138,8 +147,7 @@ function GuestHome() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.55 }}
           >
-            Experience seamless property discovery with PRMS. Browse verified
-            homes, compare listings, and connect with trusted landlords.
+            {heroSubtitle}
           </motion.p>
 
           <motion.div
@@ -224,7 +232,7 @@ function GuestHome() {
               <span>Verified property area</span>
             </div>
 
-            <Link to="/properties">
+            <Link to={heroButtonLink}>
               Explore Verified Listings <ArrowRight size={18} />
             </Link>
           </motion.article>
