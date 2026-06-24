@@ -1,0 +1,20 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const dto_1 = require("./dto");
+const auth_1 = require("../../middleware/auth");
+const rateLimit_1 = require("../../middleware/rateLimit");
+const controller_auth_1 = require("./controller_auth");
+const router = express_1.default.Router();
+const auth = new controller_auth_1.AuthController();
+router.post('/register', rateLimit_1.authLimiter, dto_1.registerBody, auth.register);
+router.post('/login', rateLimit_1.authLimiter, dto_1.loginBody, auth.login);
+router.post('/refresh', rateLimit_1.authLimiter, dto_1.refreshBody, auth.refresh);
+router.post('/logout', auth_1.authenticate, auth.logout);
+router.get('/me', auth_1.authenticate, auth.getMe);
+router.put('/me', auth_1.authenticate, auth.updateMe);
+router.post('/google', auth.googleLogin);
+exports.default = router;

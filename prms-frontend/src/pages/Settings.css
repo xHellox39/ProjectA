@@ -1,0 +1,77 @@
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.settings-card {
+  min-height: 245px;
+  padding: 28px;
+  border: 2px solid #d1d5db;
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.04);
+}
+
+.settings-card-icon {
+  width: 58px;
+  height: 58px;
+  margin-bottom: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.settings-card-icon.purple {
+  color: #8a2be2;
+  background: #f3e8ff;
+}
+
+.settings-card-icon.blue {
+  color: #2563eb;
+  background: #dbeafe;
+}
+
+.settings-card-icon.red {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.settings-card-icon.green {
+  color: #16a34a;
+  background: #dcfce7;
+}
+
+.settings-card h2 {
+  margin: 0 0 12px;
+  font-size: 24px;
+}
+
+.settings-card p {
+  margin: 0 0 28px;
+  color: #64748b;
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+.settings-card button {
+  height: 48px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: #0f172a;
+  color: white;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.settings-card button:hover {
+  background: #111c35;
+}
+
+@media (max-width: 900px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
