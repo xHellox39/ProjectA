@@ -186,13 +186,7 @@ function logoutUser() {
   localStorage.removeItem('refreshToken');
 
   sessionStorage.clear();
-
-  if (
-    window.location.pathname !== '/login'
-  ) {
-    window.location.replace('/login');
-  }
-
+  
   setTimeout(() => {
     isLoggingOut = false;
   }, 1000);
