@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import {
   CalendarDays,
   CircleHelp,
@@ -15,7 +15,9 @@ import { maintenanceApi } from '../api/maintenance'
 import { adminApi } from '../api/admin'
 import './TenantSimplePage.css'
 
-/* ---- Sub-page config (static metadata only) ---- */
+const normalizeStatus = (status) => String(status || '').toUpperCase()
+
+/* ---- Sub-page config ---- */
 const subPages = {
   bookings: {
     title: 'My Bookings',
@@ -26,13 +28,20 @@ const subPages = {
     cardLabels: ['Total Bookings', 'Pending', 'Approved', 'Cancelled'],
     columns: ['Property', 'Landlord', 'Viewing Date', 'Status', 'Action'],
     renderRow: (b) => [
-      b.propertyId ? 'Property' : '—',
-      b.landlordId ? 'Landlord' : '—',
-      b.viewing_date ? new Date(b.viewing_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—',
-      b.status,
+      b.property?.title || b.propertyTitle || b.propertyId || '—',
+      b.property?.ownerId || b.landlordId || '—',
+      b.start_date
+        ? new Date(b.start_date).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
+        : '—',
+      b.status || '—',
       'View',
     ],
   },
+
   payments: {
     title: 'Payments',
     subtitle: 'Manage rent payments, deposits, outstanding balances, and receipts.',
@@ -49,6 +58,7 @@ const subPages = {
       p.status === 'Pending' ? 'Pay Now' : 'Receipt',
     ],
   },
+
   maintenance: {
     title: 'Maintenance Requests',
     subtitle: 'Submit issues, track repair progress, and communicate with landlords.',
@@ -65,6 +75,7 @@ const subPages = {
       'View',
     ],
   },
+
   messages: {
     title: 'Messages',
     subtitle: 'Chat with landlords, admin support, and maintenance contacts.',
@@ -73,7 +84,7 @@ const subPages = {
     cardKeys: ['unread', 'total', 'unread', 'total'],
     cardLabels: ['Unread', 'Total', 'Unread', 'Total'],
     columns: ['Conversation', 'Related Property', 'Category', 'Status', 'Action'],
-    renderRow: (n, i) => [
+    renderRow: (n) => [
       n.title || 'Notification',
       '—',
       n.type || 'General',
@@ -81,6 +92,7 @@ const subPages = {
       n.isRead ? 'View' : 'Reply',
     ],
   },
+
   settings: {
     title: 'Settings',
     subtitle: 'Manage tenant profile, notifications, security, and payment methods.',
@@ -91,6 +103,7 @@ const subPages = {
     columns: ['Setting', 'Category', 'Status', 'Last Updated', 'Action'],
     renderRow: null,
   },
+
   help: {
     title: 'Help Center',
     subtitle: 'Find tenant guides, support cases, and troubleshooting help.',
@@ -108,56 +121,113 @@ export default function TenantSimplePage({ type = 'bookings' }) {
   const Icon = cfg.icon
   const { user, updateProfile } = useAuth()
 
-  const [cards, setCards] = useState(cfg.cardLabels.map((l) => ({ label: l, value: '...' })))
+  const [cards, setCards] = useState(
+    cfg.cardLabels.map((label) => ({ label, value: '...' }))
+  )
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  /* ---- Fetch real data when type or user changes ---- */
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [bookingForm, setBookingForm] = useState({
+    propertyId: '',
+    start_date: '',
+    end_date: '',
+    totalAmount: '',
+  })
+  const [bookingError, setBookingError] = useState('')
+  const [bookingLoading, setBookingLoading] = useState(false)
+
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError('')
 
     async function load() {
+      setLoading(true)
+      setError('')
+
       try {
         if (type === 'bookings') {
           const { data } = await bookingApi.myBookings()
           const items = data?.data || data || []
+
+          if (cancelled) return
+
           setRows(items)
           setCards([
             { label: 'Total Bookings', value: items.length },
-            { label: 'Pending', value: items.filter((b) => b.status === 'Pending').length },
-            { label: 'Approved', value: items.filter((b) => b.status === 'Approved').length },
-            { label: 'Cancelled', value: items.filter((b) => b.status === 'Cancelled').length },
+            {
+              label: 'Pending',
+              value: items.filter((b) => normalizeStatus(b.status) === 'PENDING').length,
+            },
+            {
+              label: 'Approved',
+              value: items.filter((b) => normalizeStatus(b.status) === 'APPROVED').length,
+            },
+            {
+              label: 'Cancelled',
+              value: items.filter((b) => normalizeStatus(b.status) === 'CANCELLED').length,
+            },
           ])
         } else if (type === 'payments') {
           const { data } = await paymentApi.list()
           const items = data?.data || data || []
+
+          if (cancelled) return
+
           setRows(items)
           const paid = items.filter((p) => p.status === 'Paid')
           const pending = items.filter((p) => p.status === 'Pending')
+
           setCards([
-            { label: 'Next Rent Due', value: pending.length ? 'RM ' + (pending[0]?.amount || 0).toLocaleString() : '—' },
-            { label: 'Paid This Month', value: 'RM ' + paid.reduce((s, p) => s + (p.amount || 0), 0).toLocaleString() },
+            {
+              label: 'Next Rent Due',
+              value: pending.length
+                ? 'RM ' + (pending[0]?.amount || 0).toLocaleString()
+                : '—',
+            },
+            {
+              label: 'Paid This Month',
+              value:
+                'RM ' +
+                paid.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString(),
+            },
             { label: 'Outstanding', value: pending.length },
             { label: 'Deposit Balance', value: '—' },
           ])
         } else if (type === 'maintenance') {
           const { data } = await maintenanceApi.list()
           const items = data?.data || data || []
+
+          if (cancelled) return
+
           setRows(items)
           setCards([
             { label: 'Open Requests', value: items.filter((m) => m.status === 'Open').length },
-            { label: 'In Progress', value: items.filter((m) => m.status === 'In Progress' || m.status === 'InProgress').length },
-            { label: 'Completed', value: items.filter((m) => m.status === 'Completed').length },
-            { label: 'Urgent', value: items.filter((m) => m.priority === 'High').length },
+            {
+              label: 'In Progress',
+              value: items.filter(
+                (m) => m.status === 'In Progress' || m.status === 'InProgress'
+              ).length,
+            },
+            {
+              label: 'Completed',
+              value: items.filter((m) => m.status === 'Completed').length,
+            },
+            {
+              label: 'Urgent',
+              value: items.filter((m) => m.priority === 'High').length,
+            },
           ])
         } else if (type === 'messages') {
           const { data } = await adminApi.getNotifications()
           const items = data?.data || data || []
+
+          if (cancelled) return
+
           setRows(items)
           const unread = items.filter((n) => !n.isRead).length
+
           setCards([
             { label: 'Unread', value: unread },
             { label: 'Total', value: items.length },
@@ -171,6 +241,7 @@ export default function TenantSimplePage({ type = 'bookings' }) {
             { label: 'Security', value: 'Secure' },
             { label: 'Payment Method', value: 'Linked' },
           ])
+
           setRows([
             ['Profile Details', 'Account', 'Active', new Date().toLocaleDateString(), 'Manage'],
             ['Payment Method', 'Payments', 'Linked', '—', 'Manage'],
@@ -183,6 +254,7 @@ export default function TenantSimplePage({ type = 'bookings' }) {
             { label: 'Response SLA', value: '4h' },
             { label: 'System Status', value: 'Online' },
           ])
+
           setRows([
             ['How to pay rent', 'Payments', 'Low', 'Available', 'Open'],
             ['Booking cancellation guide', 'Bookings', 'Low', 'Available', 'Open'],
@@ -190,23 +262,43 @@ export default function TenantSimplePage({ type = 'bookings' }) {
           ])
         }
       } catch (e) {
-        setError(e.message || 'Failed to load data')
+        if (!cancelled) {
+          setError(e.message || 'Failed to load data')
+        }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
 
     load()
-    return () => { cancelled = true }
-  }, [type, user])
 
-  /* ---- Wire the primary button ---- */
+    return () => {
+      cancelled = true
+    }
+  }, [type, user, refreshKey])
+
   const handlePrimaryBtn = async () => {
-    if (type === 'maintenance') {
+    if (type === 'bookings') {
+      setBookingError('')
+      setBookingForm({
+        propertyId: '',
+        start_date: '',
+        end_date: '',
+        totalAmount: '',
+      })
+      setShowBookingModal(true)
+    } else if (type === 'maintenance') {
       const issue = prompt('Describe the issue:')
+
       if (issue) {
         try {
-          await maintenanceApi.create({ issue, description: issue, status: 'Open' })
+          await maintenanceApi.create({
+            issue,
+            description: issue,
+            status: 'Open',
+          })
           window.location.reload()
         } catch (e) {
           alert('Failed to create: ' + e.message)
@@ -215,13 +307,56 @@ export default function TenantSimplePage({ type = 'bookings' }) {
     } else if (type === 'settings') {
       const name = prompt('Full name:', user?.full_name)
       const phone = prompt('Phone:', user?.phone)
+
       if (name || phone) {
         try {
-          await updateProfile({ full_name: name, phone })
+          await updateProfile({
+            full_name: name,
+            phone,
+          })
         } catch (e) {
           alert('Failed to update: ' + e.message)
         }
       }
+    }
+  }
+
+  const handleBookingInputChange = (e) => {
+    const { name, value } = e.target
+
+    setBookingForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handleCreateBooking = async (e) => {
+    e.preventDefault()
+
+    setBookingLoading(true)
+    setBookingError('')
+
+    try {
+      await bookingApi.create({
+        propertyId: bookingForm.propertyId,
+        start_date: bookingForm.start_date,
+        end_date: bookingForm.end_date,
+        totalAmount: bookingForm.totalAmount
+          ? Number(bookingForm.totalAmount)
+          : undefined,
+      })
+
+      setShowBookingModal(false)
+      setRefreshKey((prev) => prev + 1)
+    } catch (e) {
+      setBookingError(
+        e.response?.data?.error?.message ||
+          e.response?.data?.message ||
+          e.message ||
+          'Failed to create booking request'
+      )
+    } finally {
+      setBookingLoading(false)
     }
   }
 
@@ -232,7 +367,12 @@ export default function TenantSimplePage({ type = 'bookings' }) {
           <h1>{cfg.title}</h1>
           <p>{cfg.subtitle}</p>
         </div>
-        <button type="button" className="tenant-simple-primary-btn" onClick={handlePrimaryBtn}>
+
+        <button
+          type="button"
+          className="tenant-simple-primary-btn"
+          onClick={handlePrimaryBtn}
+        >
           {cfg.primaryBtn}
         </button>
       </section>
@@ -252,6 +392,7 @@ export default function TenantSimplePage({ type = 'bookings' }) {
       <section className="tenant-simple-table-card">
         <div className="tenant-simple-table-header">
           <h2>{cfg.title}</h2>
+
           <div className="tenant-simple-search">
             <Search size={17} />
             <input type="text" placeholder="Search records..." />
@@ -268,7 +409,9 @@ export default function TenantSimplePage({ type = 'bookings' }) {
           <div className="tenant-simple-table">
             <div
               className="tenant-simple-table-head"
-              style={{ gridTemplateColumns: `repeat(${cfg.columns.length}, 1fr)` }}
+              style={{
+                gridTemplateColumns: `repeat(${cfg.columns.length}, 1fr)`,
+              }}
             >
               {cfg.columns.map((col) => (
                 <p key={col}>{col}</p>
@@ -277,7 +420,13 @@ export default function TenantSimplePage({ type = 'bookings' }) {
 
             {rows.length === 0 && (
               <div className="tenant-simple-table-row">
-                <div colSpan={cfg.columns.length} style={{ gridColumn: `1 / ${cfg.columns.length + 1}`, textAlign: 'center', padding: 20 }}>
+                <div
+                  style={{
+                    gridColumn: `1 / ${cfg.columns.length + 1}`,
+                    textAlign: 'center',
+                    padding: 20,
+                  }}
+                >
                   No records found
                 </div>
               </div>
@@ -285,11 +434,15 @@ export default function TenantSimplePage({ type = 'bookings' }) {
 
             {rows.map((row, i) => {
               const cells = cfg.renderRow ? cfg.renderRow(row, i) : row
+
               if (!cells) return null
+
               return (
                 <div
                   className="tenant-simple-table-row"
-                  style={{ gridTemplateColumns: `repeat(${cfg.columns.length}, 1fr)` }}
+                  style={{
+                    gridTemplateColumns: `repeat(${cfg.columns.length}, 1fr)`,
+                  }}
                   key={row.id || i}
                 >
                   {cells.map((cell, ci) => (
@@ -307,6 +460,88 @@ export default function TenantSimplePage({ type = 'bookings' }) {
           </div>
         )}
       </section>
+
+      {showBookingModal && (
+        <div className="tenant-booking-modal-overlay">
+          <div className="tenant-booking-modal">
+            <div className="tenant-booking-modal-header">
+              <div>
+                <h2>New Booking Request</h2>
+                <p>Submit a new property booking request.</p>
+              </div>
+
+              <button
+                type="button"
+                className="tenant-booking-modal-close"
+                onClick={() => setShowBookingModal(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <form className="tenant-booking-form" onSubmit={handleCreateBooking}>
+              <label>Property ID</label>
+              <input
+                type="text"
+                name="propertyId"
+                value={bookingForm.propertyId}
+                onChange={handleBookingInputChange}
+                placeholder="Enter property ID"
+                required
+              />
+
+              <label>Start Date</label>
+              <input
+                type="datetime-local"
+                name="start_date"
+                value={bookingForm.start_date}
+                onChange={handleBookingInputChange}
+                required
+              />
+
+              <label>End Date</label>
+              <input
+                type="datetime-local"
+                name="end_date"
+                value={bookingForm.end_date}
+                onChange={handleBookingInputChange}
+                required
+              />
+
+              <label>Total Amount</label>
+              <input
+                type="number"
+                name="totalAmount"
+                value={bookingForm.totalAmount}
+                onChange={handleBookingInputChange}
+                placeholder="Example: 1200"
+              />
+
+              {bookingError && (
+                <div className="tenant-booking-error">{bookingError}</div>
+              )}
+
+              <div className="tenant-booking-actions">
+                <button
+                  type="button"
+                  className="light-btn"
+                  onClick={() => setShowBookingModal(false)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="dark-btn"
+                  disabled={bookingLoading}
+                >
+                  {bookingLoading ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   )
 }

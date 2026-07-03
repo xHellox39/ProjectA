@@ -18,10 +18,13 @@ enum PropertyStatus {
 enum BookingStatus {
   PENDING
   CONFIRMED
+  APPROVED
+  REJECTED
   CHECKED_IN
   CHECKED_OUT
   CANCELLED
 }
+
 
 enum PaymentStatus {
   UNPAID

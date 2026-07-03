@@ -17,6 +17,8 @@ import { maintenanceApi } from '../api/maintenance'
 import { adminApi } from '../api/admin'
 import './LandlordSimplePage.css'
 
+const normalizeStatus = (status) => String(status || '').toUpperCase()
+
 const subPages = {
   properties: {
     title: 'My Properties',
@@ -28,26 +30,30 @@ const subPages = {
     renderRow: (p) => [
       p.title || '—',
       p.city || '—',
-      typeof p.monthly_rent === 'number' ? 'RM ' + p.monthly_rent.toLocaleString() : (p.rent || '—'),
+      typeof p.monthly_rent === 'number'
+        ? 'RM ' + p.monthly_rent.toLocaleString()
+        : p.rent || '—',
       p.status || 'Active',
       'View',
     ],
   },
+
   bookings: {
     title: 'Booking Requests',
     subtitle: 'Review tenant booking requests, approvals, scheduled viewings, and cancellations.',
     icon: CalendarDays,
     primaryBtn: 'Review All',
-    cardLabels: ['Total Bookings', 'Pending', 'Approved', 'Cancelled'],
-    columns: ['Tenant', 'Property', 'Date', 'Status', 'Action'],
+    cardLabels: ['Total Bookings', 'Pending', 'Approved', 'Rejected'],
+    columns: ['Tenant', 'Property', 'Start Date', 'Status', 'Action'],
     renderRow: (b) => [
-      b.tenantId ? 'Tenant' : '—',
-      b.propertyTitle || b.propertyId ? 'Property' : '—',
-      b.viewing_date ? new Date(b.viewing_date).toLocaleDateString() : '—',
-      b.status,
-      b.status === 'Pending' ? 'Approve' : 'View',
+      b.user?.full_name || b.user?.email || b.userId || 'Tenant',
+      b.property?.title || b.propertyTitle || b.propertyId || 'Property',
+      b.start_date ? new Date(b.start_date).toLocaleDateString() : '—',
+      b.status || '—',
+      'Action',
     ],
   },
+
   finance: {
     title: 'Finance',
     subtitle: 'Track rent income, payment records, deposits, and late payments.',
@@ -56,13 +62,16 @@ const subPages = {
     cardLabels: ['Monthly Revenue', 'Pending Rent', 'Deposits', 'Late Payments'],
     columns: ['Transaction', 'Tenant', 'Amount', 'Status', 'Action'],
     renderRow: (p) => [
-      p.id ? 'RENT-' + p.id.slice(-4) : (p.reference || '—'),
+      p.id ? 'RENT-' + p.id.slice(-4) : p.reference || '—',
       p.tenantId ? 'Tenant' : '—',
-      typeof p.amount === 'number' ? 'RM ' + p.amount.toLocaleString() : p.amount || '—',
+      typeof p.amount === 'number'
+        ? 'RM ' + p.amount.toLocaleString()
+        : p.amount || '—',
       p.status,
       p.status === 'Pending' ? 'Remind' : 'View',
     ],
   },
+
   maintenance: {
     title: 'Maintenance',
     subtitle: 'Manage maintenance tickets, urgent repairs, staff assignments, and tenant updates.',
@@ -78,6 +87,7 @@ const subPages = {
       m.status === 'Open' ? 'Assign' : 'View',
     ],
   },
+
   messages: {
     title: 'Messages',
     subtitle: 'Communicate with tenants, respond to booking questions, and manage support threads.',
@@ -85,7 +95,7 @@ const subPages = {
     primaryBtn: 'New Message',
     cardLabels: ['Unread', 'Total', 'Unread', 'Total'],
     columns: ['Conversation', 'Related Property', 'Category', 'Status', 'Action'],
-    renderRow: (n, i) => [
+    renderRow: (n) => [
       n.title || 'Notification',
       '—',
       n.type || 'General',
@@ -93,6 +103,7 @@ const subPages = {
       n.isRead ? 'View' : 'Reply',
     ],
   },
+
   settings: {
     title: 'Settings',
     subtitle: 'Manage landlord account preferences, notifications, security, and profile details.',
@@ -102,6 +113,7 @@ const subPages = {
     columns: ['Setting', 'Category', 'Status', 'Last Updated', 'Action'],
     renderRow: null,
   },
+
   help: {
     title: 'Help Center',
     subtitle: 'Find landlord guides, support cases, and troubleshooting help.',
@@ -118,67 +130,127 @@ export default function LandlordSimplePage({ type = 'properties' }) {
   const Icon = cfg.icon
   const { user, updateProfile } = useAuth()
 
-  const [cards, setCards] = useState(cfg.cardLabels.map((l) => ({ label: l, value: '...' })))
+  const [cards, setCards] = useState(
+    cfg.cardLabels.map((label) => ({ label, value: '...' }))
+  )
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError('')
 
     async function load() {
+      setLoading(true)
+      setError('')
+
       try {
         if (type === 'properties') {
           const { data } = await propertyApi.myProperties()
           const items = data?.data || data || []
+
+          if (cancelled) return
+
           setRows(items)
           setCards([
             { label: 'Total Listings', value: items.length },
-            { label: 'Occupied', value: items.filter((p) => p.status === 'Occupied' || p.status === 'Active').length },
-            { label: 'Vacant', value: items.filter((p) => p.status === 'Vacant').length },
-            { label: 'Pending Approval', value: items.filter((p) => p.status === 'Pending').length },
+            {
+              label: 'Occupied',
+              value: items.filter(
+                (p) => p.status === 'Occupied' || p.status === 'Active'
+              ).length,
+            },
+            {
+              label: 'Vacant',
+              value: items.filter((p) => p.status === 'Vacant').length,
+            },
+            {
+              label: 'Pending Approval',
+              value: items.filter((p) => p.status === 'Pending').length,
+            },
           ])
         } else if (type === 'bookings') {
           const { data } = await bookingApi.list()
-          const items = data?.data || data || []
-          setRows(items)
+          const items = data?.data || data?.bookings || data || []
+
+          if (cancelled) return
+
+          setRows(Array.isArray(items) ? items : [])
           setCards([
             { label: 'Total Bookings', value: items.length },
-            { label: 'Pending', value: items.filter((b) => b.status === 'Pending').length },
-            { label: 'Approved', value: items.filter((b) => b.status === 'Approved').length },
-            { label: 'Cancelled', value: items.filter((b) => b.status === 'Cancelled').length },
+            {
+              label: 'Pending',
+              value: items.filter((b) => normalizeStatus(b.status) === 'PENDING').length,
+            },
+            {
+              label: 'Approved',
+              value: items.filter((b) => normalizeStatus(b.status) === 'APPROVED').length,
+            },
+            {
+              label: 'Rejected',
+              value: items.filter((b) => normalizeStatus(b.status) === 'REJECTED').length,
+            },
           ])
         } else if (type === 'finance') {
           const { data } = await paymentApi.list()
           const items = data?.data || data || []
+
+          if (cancelled) return
+
           setRows(items)
+
           const paid = items.filter((p) => p.status === 'Paid')
           const pending = items.filter((p) => p.status === 'Pending')
-          const totalPaid = paid.reduce((s, p) => s + (p.amount || 0), 0)
-          const totalPending = pending.reduce((s, p) => s + (p.amount || 0), 0)
+          const totalPaid = paid.reduce((sum, p) => sum + (p.amount || 0), 0)
+          const totalPending = pending.reduce((sum, p) => sum + (p.amount || 0), 0)
+
           setCards([
             { label: 'Monthly Revenue', value: 'RM ' + totalPaid.toLocaleString() },
             { label: 'Pending Rent', value: 'RM ' + totalPending.toLocaleString() },
             { label: 'Deposits', value: '—' },
-            { label: 'Late Payments', value: items.filter((p) => p.status === 'Overdue' || p.status === 'Late').length },
+            {
+              label: 'Late Payments',
+              value: items.filter((p) => p.status === 'Overdue' || p.status === 'Late').length,
+            },
           ])
         } else if (type === 'maintenance') {
           const { data } = await maintenanceApi.list()
           const items = data?.data || data || []
+
+          if (cancelled) return
+
           setRows(items)
           setCards([
-            { label: 'Open Tickets', value: items.filter((m) => m.status === 'Open').length },
-            { label: 'High Priority', value: items.filter((m) => m.priority === 'High').length },
-            { label: 'In Progress', value: items.filter((m) => m.status === 'In Progress' || m.status === 'InProgress').length },
-            { label: 'Completed', value: items.filter((m) => m.status === 'Completed').length },
+            {
+              label: 'Open Tickets',
+              value: items.filter((m) => m.status === 'Open').length,
+            },
+            {
+              label: 'High Priority',
+              value: items.filter((m) => m.priority === 'High').length,
+            },
+            {
+              label: 'In Progress',
+              value: items.filter(
+                (m) => m.status === 'In Progress' || m.status === 'InProgress'
+              ).length,
+            },
+            {
+              label: 'Completed',
+              value: items.filter((m) => m.status === 'Completed').length,
+            },
           ])
         } else if (type === 'messages') {
           const { data } = await adminApi.getNotifications()
           const items = data?.data || data || []
+
+          if (cancelled) return
+
           setRows(items)
+
           const unread = items.filter((n) => !n.isRead).length
+
           setCards([
             { label: 'Unread', value: unread },
             { label: 'Total', value: items.length },
@@ -192,6 +264,7 @@ export default function LandlordSimplePage({ type = 'properties' }) {
             { label: 'Security', value: 'Secure' },
             { label: 'Bank Account', value: 'Linked' },
           ])
+
           setRows([
             ['Profile Details', 'Account', 'Active', new Date().toLocaleDateString(), 'Manage'],
             ['Rent Alerts', 'Notification', 'Enabled', 'Today', 'Manage'],
@@ -204,6 +277,7 @@ export default function LandlordSimplePage({ type = 'properties' }) {
             { label: 'Response SLA', value: '4h' },
             { label: 'Status', value: 'Online' },
           ])
+
           setRows([
             ['How to approve tenant booking', 'Bookings', 'Low', 'Available', 'Open'],
             ['Payment not reflected', 'Finance', 'High', 'Open', 'View'],
@@ -211,20 +285,33 @@ export default function LandlordSimplePage({ type = 'properties' }) {
           ])
         }
       } catch (e) {
-        setError(e.message || 'Failed to load data')
+        if (!cancelled) {
+          setError(
+            e.response?.data?.error?.message ||
+              e.response?.data?.message ||
+              e.message ||
+              'Failed to load data'
+          )
+        }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
 
     load()
-    return () => { cancelled = true }
-  }, [type, user])
+
+    return () => {
+      cancelled = true
+    }
+  }, [type, user, refreshKey])
 
   const handlePrimaryBtn = async () => {
     if (type === 'settings') {
       const name = prompt('Full name:', user?.full_name)
       const phone = prompt('Phone:', user?.phone)
+
       if (name || phone) {
         try {
           await updateProfile({ full_name: name, phone })
@@ -235,6 +322,20 @@ export default function LandlordSimplePage({ type = 'properties' }) {
     }
   }
 
+  const handleBookingStatusUpdate = async (bookingId, status) => {
+    try {
+      await bookingApi.update(bookingId, { status })
+      setRefreshKey((prev) => prev + 1)
+    } catch (e) {
+      alert(
+        'Failed to update booking: ' +
+          (e.response?.data?.error?.message ||
+            e.response?.data?.message ||
+            e.message)
+      )
+    }
+  }
+
   return (
     <>
       <section className="landlord-simple-hero">
@@ -242,7 +343,12 @@ export default function LandlordSimplePage({ type = 'properties' }) {
           <h1>{cfg.title}</h1>
           <p>{cfg.subtitle}</p>
         </div>
-        <button type="button" className="landlord-simple-primary-btn" onClick={handlePrimaryBtn}>
+
+        <button
+          type="button"
+          className="landlord-simple-primary-btn"
+          onClick={handlePrimaryBtn}
+        >
           {cfg.primaryBtn}
         </button>
       </section>
@@ -262,6 +368,7 @@ export default function LandlordSimplePage({ type = 'properties' }) {
       <section className="landlord-simple-table-card">
         <div className="landlord-simple-table-header">
           <h2>{cfg.title}</h2>
+
           <div className="landlord-simple-search">
             <Search size={17} />
             <input type="text" placeholder="Search records..." />
@@ -278,7 +385,9 @@ export default function LandlordSimplePage({ type = 'properties' }) {
           <div className="landlord-simple-table">
             <div
               className="landlord-simple-table-head"
-              style={{ gridTemplateColumns: `repeat(${cfg.columns.length}, 1fr)` }}
+              style={{
+                gridTemplateColumns: `repeat(${cfg.columns.length}, 1fr)`,
+              }}
             >
               {cfg.columns.map((col) => (
                 <p key={col}>{col}</p>
@@ -287,7 +396,13 @@ export default function LandlordSimplePage({ type = 'properties' }) {
 
             {rows.length === 0 && (
               <div className="landlord-simple-table-row">
-                <div style={{ gridColumn: `1 / ${cfg.columns.length + 1}`, textAlign: 'center', padding: 20 }}>
+                <div
+                  style={{
+                    gridColumn: `1 / ${cfg.columns.length + 1}`,
+                    textAlign: 'center',
+                    padding: 20,
+                  }}
+                >
                   No records found
                 </div>
               </div>
@@ -295,17 +410,44 @@ export default function LandlordSimplePage({ type = 'properties' }) {
 
             {rows.map((row, i) => {
               const cells = cfg.renderRow ? cfg.renderRow(row, i) : row
+
               if (!cells) return null
+
               return (
                 <div
                   className="landlord-simple-table-row"
-                  style={{ gridTemplateColumns: `repeat(${cfg.columns.length}, 1fr)` }}
+                  style={{
+                    gridTemplateColumns: `repeat(${cfg.columns.length}, 1fr)`,
+                  }}
                   key={row.id || i}
                 >
                   {cells.map((cell, ci) => (
                     <div key={`${ci}-${row.id || i}`}>
                       {ci === cells.length - 1 ? (
-                        <button type="button">{cell}</button>
+                        type === 'bookings' &&
+                        normalizeStatus(row.status) === 'PENDING' ? (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleBookingStatusUpdate(row.id, 'APPROVED')
+                              }
+                            >
+                              Approve
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleBookingStatusUpdate(row.id, 'REJECTED')
+                              }
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <button type="button">View</button>
+                        )
                       ) : (
                         <span>{cell}</span>
                       )}

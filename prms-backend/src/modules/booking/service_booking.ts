@@ -33,9 +33,10 @@ export async function updateBooking(id: string, data: { status?: string; totalAm
 }
 
 export async function cancelBooking(id: string) {
-  return prisma.booking.update({ where: { id }, data: { status: 'cancelled' } });
+  return prisma.booking.update({ where: { id }, data: { status: 'CANCELLED' } });
 }
 
 export async function getMyBookings(userId: string) {
   return prisma.booking.findMany({ where: { userId }, include: { property: true } });
 }
+

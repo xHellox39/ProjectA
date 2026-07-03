@@ -209,3 +209,116 @@
     min-width: 900px;
   }
 }
+
+/* ================= LANDLORD BOOKING MANAGEMENT ================= */
+
+.landlord-simple-table-row {
+  transition: background 0.2s ease;
+}
+
+.landlord-simple-table-row:hover {
+  background: #f8fafc;
+}
+
+/* Booking action buttons */
+.landlord-booking-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.landlord-approve-btn,
+.landlord-reject-btn,
+.landlord-view-btn {
+  min-height: 36px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.landlord-approve-btn {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.landlord-approve-btn:hover {
+  background: #bbf7d0;
+}
+
+.landlord-reject-btn {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.landlord-reject-btn:hover {
+  background: #fecaca;
+}
+
+.landlord-view-btn {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.landlord-view-btn:hover {
+  background: #e9d5ff;
+}
+
+/* Booking status badges */
+.booking-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.booking-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.booking-status.approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.booking-status.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.booking-status.cancelled {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+/* Empty booking state */
+.landlord-booking-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 28px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .landlord-booking-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .landlord-approve-btn,
+  .landlord-reject-btn,
+  .landlord-view-btn {
+    width: 100%;
+  }
+}

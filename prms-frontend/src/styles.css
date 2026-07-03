@@ -1300,3 +1300,240 @@ form label {
 .properties-loading .spinner { width: 40px; height: 40px; border: 3px solid #e5e7eb; border-top-color: #9b3ee8; border-radius: 50%; animation: spin 0.7s linear infinite; }
 .properties-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 64px; color: #9ca3af; }
 .properties-empty h2 { color: #4b5563; }
+
+
+/* ═══ BOOKING POPUP MODAL ONLY ═══ */
+
+.booking-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.booking-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.booking-modal {
+  width: 100%;
+  max-width: 620px;
+  background: #fff;
+  border: 2px solid #d1d5db;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+}
+
+.booking-modal-header {
+  padding: 24px 28px;
+  border-bottom: 2px solid #e5e7eb;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.booking-modal-header h2 {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.booking-modal-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.booking-modal-close {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 10px;
+  background: #f3f4f8;
+  color: #111827;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.booking-modal-form {
+  padding: 26px 28px 28px;
+}
+
+.booking-modal-form label {
+  display: block;
+  margin: 18px 0 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #374151;
+}
+
+.booking-modal-form label:first-child {
+  margin-top: 0;
+}
+
+.booking-modal-form input {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #111827;
+  outline: none;
+  font-size: 15px;
+}
+
+.booking-modal-form input:focus {
+  border-color: #9b3ee8;
+  background: white;
+}
+
+.booking-modal-error {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.booking-modal-actions {
+  margin-top: 26px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.booking-modal-actions .light-btn,
+.booking-modal-actions .dark-btn {
+  height: 46px;
+}
+
+.booking-modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Booking request popup */
+
+.tenant-booking-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.tenant-booking-modal {
+  width: 100%;
+  max-width: 620px;
+  background: #fff;
+  border: 2px solid #d1d5db;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+}
+
+.tenant-booking-modal-header {
+  padding: 24px 28px;
+  border-bottom: 2px solid #e5e7eb;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.tenant-booking-modal-header h2 {
+  margin: 0 0 6px;
+  font-size: 24px;
+  color: #111827;
+}
+
+.tenant-booking-modal-header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.tenant-booking-modal-close {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 10px;
+  background: #f3f4f8;
+  color: #111827;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tenant-booking-form {
+  padding: 26px 28px 28px;
+}
+
+.tenant-booking-form label {
+  display: block;
+  margin: 18px 0 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #374151;
+}
+
+.tenant-booking-form label:first-child {
+  margin-top: 0;
+}
+
+.tenant-booking-form input {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #111827;
+  outline: none;
+  font-size: 15px;
+}
+
+.tenant-booking-form input:focus {
+  border-color: #9b3ee8;
+  background: white;
+}
+
+.tenant-booking-error {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.tenant-booking-actions {
+  margin-top: 26px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.tenant-booking-actions .light-btn,
+.tenant-booking-actions .dark-btn {
+  height: 46px;
+}

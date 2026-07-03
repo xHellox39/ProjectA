@@ -19,10 +19,12 @@ import LandlordLayout from './components/LandlordLayout';
 import LandlordDashboard from './pages/LandlordDashboard';
 import LandlordSimplePage from './pages/LandlordSimplePage';
 
+
 /*  Tenant  */
 import TenantLayout from './components/TenantLayout';
 import TenantDashboard from './pages/TenantDashboard';
 import TenantSimplePage from './pages/TenantSimplePage';
+import MyBookings from './pages/MyBookings';
 
 /*  Shared  */
 import Properties from './pages/Properties';
@@ -106,7 +108,7 @@ function AppRoutes() {
       >
         <Route index element={<LandlordDashboard />} />
         <Route path="properties" element={<Properties />} />
-        <Route path="bookings" element={<LandlordSimplePage label="My Bookings" />} />
+        <Route path="bookings" element={<LandlordSimplePage type="bookings" />} />
         <Route path="finance" element={<LandlordSimplePage label="Finance & Payments" />} />
         <Route path="maintenance" element={<LandlordSimplePage label="Maintenance Requests" />} />
         <Route path="messages" element={<LandlordSimplePage label="Messages" />} />
