@@ -8,11 +8,13 @@ import PageTransition from './PageTransition'
 import { useAuth } from '../contexts/AuthContext'
 import { buildNavItems, resolveActivePage } from './NavigationConfig'
 import NotificationDropdown from './NotificationDropdown'
+import ThemeSwitcher from './ThemeSwitcher'
 import './AdminLayout.css'
 
 function getTopbarTitle(activePage) {
   const titles = {
     dashboard: 'Admin Dashboard',
+    notifications: 'Notification Center',
     users: 'User Management',
     properties: 'Property Management',
     bookings: 'Booking Management',
@@ -20,6 +22,7 @@ function getTopbarTitle(activePage) {
     maintenance: 'Maintenance Center',
     messages: 'Admin Messages',
     reports: 'Reports & Audit',
+    categories: 'Category Management',
     settings: 'Admin Settings',
     help: 'Admin Help Center',
   }
@@ -49,7 +52,7 @@ function AdminLayout() {
 
   return (
     <main className="admin-layout-shell">
-      <aside className="admin-layout-sidebar">
+      <aside className="admin-layout-sidebar" data-customize-id="global.sidebar">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = activePage === item.key
@@ -94,7 +97,7 @@ function AdminLayout() {
       </aside>
 
       <section className="admin-layout-main">
-        <header className="admin-layout-topbar">
+        <header className="admin-layout-topbar" data-customize-id="global.header">
           <div className="admin-layout-brand" onClick={() => safeNavigate('/admin')}>
             <h2>PRMS</h2>
             <span></span>
@@ -103,8 +106,14 @@ function AdminLayout() {
 
           <div className="admin-layout-top-actions">
             <NotificationDropdown />
+            <ThemeSwitcher />
 
-            <motion.div className="admin-layout-avatar" whileHover={{ scale: 1.08 }}>
+            <motion.div
+              className="admin-layout-avatar"
+              whileHover={{ scale: 1.08 }}
+              style={{ cursor: 'pointer' }}
+              onClick={() => safeNavigate('/admin/profile')}
+            >
               {initials}
             </motion.div>
           </div>

@@ -48,6 +48,43 @@ enum MaintenancePriority {
   URGENT
 }
 
+model Agent {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  agentProperties AgentProperty[]
+  @@map("agents")
+}
+
+model AgentProperty {
+  agentId    String
+  propertyId String
+  agent      Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  @@id([agentId, propertyId])
+  @@map("agent_properties")
+}
+
+model PropertyCategory {
+  id             String     @id @default(uuid())
+  name           String     @unique
+  description    String?
+  isShared       Boolean    @default(true)
+  ownerId        String?
+  owner          User?      @relation("user_categories", fields: [ownerId], references: [id])
+  isDisabled     Boolean    @default(false)
+  created_at     DateTime   @default(now())
+  updated_at     DateTime   @updatedAt
+  properties     Property[]
+
+  @@index([isShared])
+  @@index([ownerId])
+  @@map("property_categories")
+}
+
 model User {
   id              String   @id @default(uuid())
   firebase_uid    String   @unique
@@ -72,6 +109,9 @@ model User {
   notifications Notification[]
   favorites   Favorite[]
   auditLogs   AuditLog[]
+  agents               Agent[]
+  personalCategories   PropertyCategory[] @relation("user_categories")
+  preferences          UserPreference?
 
   @@index([email])
   @@map("users")
@@ -99,6 +139,8 @@ model Property {
   title          String
   address        String
   property_type  String    @default("apartment")
+  categoryId     String?
+  category       PropertyCategory? @relation(fields: [categoryId], references: [id])
   rent           Float
   status         PropertyStatus  @default(AVAILABLE)
   availableFrom  DateTime?
@@ -108,6 +150,7 @@ model Property {
   ownerId        String
   owner          User      @relation(fields: [ownerId], references: [id])
   amenities      Amenity[]
+  agentProperties AgentProperty[]
   images         PropertyImage[]
   bookings       Booking[]
   invoices       Invoice[]
@@ -253,20 +296,80 @@ model SystemSetting {
   @@map("system_settings")
 }
 
+model UserPreference {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appearance  String   @default("system")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  @@map("user_preferences")
+}
+
+model Theme {
+  id          String       @id @default(uuid())
+  name        String       @default("Default Theme")
+  isPublished Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  versions    ThemeVersion[]
+  drafts      ThemeDraft[]
+  @@map("themes")
+}
+
+model ThemeVersion {
+  id              String   @id @default(uuid())
+  themeId         String
+  theme           Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  version         Int
+  lightConfig     Json?
+  darkConfig      Json?
+  createdAt       DateTime @default(now())
+  createdBy       String?
+
+  @@unique([themeId, version])
+  @@index([themeId])
+  @@map("theme_versions")
+}
+
+model ThemeDraft {
+  id              String   @id @default(uuid())
+  themeId         String
+  theme           Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  lightConfig     Json?
+  darkConfig      Json?
+  updatedAt       DateTime @updatedAt
+  @@map("theme_drafts")
+}
+
 model AuditLog {
   id          String   @id @default(uuid())
   userId      String?
   user        User?    @relation(fields: [userId], references: [id])
+  username    String?
+  userRole    String?
+  module      String
   action      String
   entity      String
   entityId    String?
-  details     String?
+  description String?
+  oldValue    String?
+  newValue    String?
+  status      String   @default("Success")
+  level       String   @default("info")
   ipAddress   String?
   userAgent   String?
+  requestUrl  String?
+  httpMethod  String?
+  errorMessage String?
   created_at  DateTime @default(now())
 
   @@index([userId])
   @@index([entity])
+  @@index([module])
+  @@index([action])
+  @@index([status])
+  @@index([created_at])
   @@map("audit_logs")
 }
 

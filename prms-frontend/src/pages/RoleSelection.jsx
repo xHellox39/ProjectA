@@ -1,17 +1,23 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   ArrowRight,
   BriefcaseBusiness,
   Building2,
   Home,
   User,
-} from 'lucide-react'
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useRegistration } from '../contexts/RegistrationContext';
+import { roleToPath } from '../config/routes';
 
 function RoleSelection() {
-  const navigate = useNavigate()
-  const [selectedRole, setSelectedRole] = useState('admin')
+  const navigate = useNavigate();
+  const { updateProfile } = useAuth();
+  const { setSelectedRole: setContextRole } = useRegistration();
+  /* Issue #4: Default to null so user must explicitly pick a role */
+  const [selectedRole, setSelectedRole] = useState(null);
 
   const roles = [
     {
@@ -29,6 +35,13 @@ function RoleSelection() {
       path: '/landlord',
     },
     {
+      key: 'agent',
+      title: 'Agent',
+      description: 'I represent landlords and help tenants find homes.',
+      icon: Building2,
+      path: '/agent',
+    },
+    {
       key: 'admin',
       title: 'Admin',
       description: 'Manage users, system security, and platform operations.',
@@ -37,32 +50,54 @@ function RoleSelection() {
     },
   ]
 
-  function handleContinue() {
-    const role = roles.find((item) => item.key === selectedRole)
-    const title = role?.title || 'Tenant'
+  async function handleContinue() {
+    /* Issue #4: Guard — don't proceed without role selection */
+    if (!selectedRole) return;
 
-    /* Save selected role title (capitalized) so Register can use it */
-    localStorage.setItem('prmsSelectedRole', title)
-    navigate('/register')
+    const role = roles.find((item) => item.key === selectedRole);
+    const title = role?.title || 'Tenant';
+
+    /* Issue #3: Check if this is a Google onboarding flow (already authenticated) */
+    const isOnboarding = localStorage.getItem('prmsOnboarding') === 'true';
+
+    if (isOnboarding) {
+      /* Update user's role from default Tenant to selected role */
+      await updateProfile({ role: title });
+      /* Clear onboarding flags */
+      localStorage.removeItem('prmsOnboarding');
+      /* Navigate to the selected role's dashboard */
+      navigate(roleToPath(title));
+    } else {
+      /* Regular registration flow: save role to context (syncs to sessionStorage) and go to Register */
+      setContextRole(title);
+      navigate('/register');
+    }
   }
 
   return (
-    <main className="role-page">
+    <main className="role-page" data-customize-id="global.page">
       <motion.section
         className="role-left"
         initial={{ x: -80, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.65, ease: 'easeOut' }}
       >
-        <motion.div
-          className="role-brand"
-          initial={{ y: -18, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
-        >
-          <Building2 size={44} />
-          <span>PRMS</span>
-        </motion.div>
+        <Link to="/" className="role-brand" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+          <motion.div
+            initial={{ y: -18, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.15, duration: 0.4 }}
+          >
+            <Building2 size={44} />
+          </motion.div>
+          <motion.span
+            initial={{ y: -18, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+          >
+            PRMS
+          </motion.span>
+        </Link>
 
         <div className="role-left-content">
           <motion.h1
@@ -168,14 +203,28 @@ function RoleSelection() {
             type="button"
             className="continue-btn"
             onClick={handleContinue}
+            disabled={!selectedRole}
+            style={selectedRole ? {} : { opacity: 0.5, cursor: 'not-allowed' }}
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 1.02, duration: 0.35 }}
-            whileHover={{ y: -3, scale: 1.01 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={selectedRole ? { y: -3, scale: 1.01 } : {}}
+            whileTap={selectedRole ? { scale: 0.97 } : {}}
           >
             Continue <ArrowRight size={24} />
           </motion.button>
+
+          <motion.p
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 1.12, duration: 0.35 }}
+            style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.95rem', color: 'var(--text-secondary, #64748b)' }}
+          >
+            Already have an account?{' '}
+            <Link to="/login" style={{ color: 'var(--accent, #2563eb)', fontWeight: 600, textDecoration: 'none' }}>
+              Sign in
+            </Link>
+          </motion.p>
         </motion.div>
       </motion.section>
     </main>

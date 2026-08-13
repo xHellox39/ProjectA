@@ -15,8 +15,12 @@ export const authApi = {
 
   login: ({ email, password }) => apiClient.post('/auth/login', { email, password }),
 
-  googleLogin(idToken) {
-    return apiClient.post('/auth/google', { idToken });
+  googleLogin(googleAuth) {
+    return apiClient.post('/auth/google', {
+      idToken: googleAuth.idToken,
+      email: googleAuth.email,
+      displayName: googleAuth.displayName,
+    });
   },
 
   refresh({ refreshToken }) {
@@ -33,5 +37,12 @@ export const authApi = {
 
   updateMe(data) {
     return apiClient.put('/auth/me', data);
+  },
+
+  changePassword({ currentPassword, newPassword }) {
+    return apiClient.post('/auth/change-password', {
+      currentPassword,
+      newPassword,
+    });
   },
 };

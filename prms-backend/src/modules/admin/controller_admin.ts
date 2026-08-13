@@ -11,6 +11,29 @@ export class AdminController {
     } catch (error: any) { res.status(500).json({ success: false, error: { message: error.message } }); }
   };
 
+  getSettingsByCategory = async (req: Request, res: Response) => {
+    try {
+      const { category } = req.params;
+      const settings = await adminService.getSystemSettingsByCategory(String(category));
+      res.json(successResponse(settings));
+    } catch (error: any) { res.status(500).json({ success: false, error: { message: error.message } }); }
+  };
+
+  getPublicSettings = async (req: Request, res: Response) => {
+    try {
+      const settings = await adminService.getPublicSystemSettings();
+      res.json(successResponse(settings));
+    } catch (error: any) { res.status(500).json({ success: false, error: { message: error.message } }); }
+  };
+
+  bulkUpdateSettings = async (req: Request, res: Response) => {
+    try {
+      const settingsList = req.body.settings || req.body;
+      const updated = await adminService.bulkUpdateSystemSettings(settingsList);
+      res.json(successResponse(updated, 'Settings updated'));
+    } catch (error: any) { res.status(400).json({ success: false, error: { message: error.message } }); }
+  };
+
   updateSetting = async (req: Request, res: Response) => {
     try {
       const { key, value } = req.body;

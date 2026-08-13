@@ -3,21 +3,67 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSystemSettings = getSystemSettings;
 exports.updateSystemSetting = updateSystemSetting;
 exports.addSystemSetting = addSystemSetting;
+exports.getSystemSettingsByCategory = getSystemSettingsByCategory;
+exports.getPublicSystemSettings = getPublicSystemSettings;
+exports.bulkUpdateSystemSettings = bulkUpdateSystemSettings;
 exports.getAuditLogs = getAuditLogs;
 exports.createAuditLog = createAuditLog;
 exports.getNotifications = getNotifications;
 exports.createNotification = createNotification;
 exports.markNotificationRead = markNotificationRead;
 exports.markAllNotificationsRead = markAllNotificationsRead;
+exports.dismissNotification = dismissNotification;
 const db_1 = require("../../db");
 async function getSystemSettings() {
     return db_1.prisma.systemSetting.findMany({ orderBy: { key: 'asc' } });
 }
 async function updateSystemSetting(key, value) {
-    return db_1.prisma.systemSetting.update({ where: { key }, data: { value } });
+    if (!key || key === 'undefined') {
+        throw new Error('Setting key is required');
+    }
+    if (value === undefined || value === null) {
+        value = '';
+    }
+    const category = String(key).split('_')[0] ?? 'general';
+    return db_1.prisma.systemSetting.upsert({
+        where: { key: String(key) },
+        update: { value: String(value) },
+        create: { key: String(key), value: String(value), category },
+    });
 }
 async function addSystemSetting(key, value, category = 'general', description) {
     return db_1.prisma.systemSetting.create({ data: { key, value, category, description } });
+}
+async function getSystemSettingsByCategory(category) {
+    return db_1.prisma.systemSetting.findMany({
+        where: { category },
+        orderBy: { key: 'asc' },
+    });
+}
+// Categories safe for public consumption (no sensitive internal config)
+const publicCategories = ['theme', 'branding', 'header', 'footer', 'homepage', 'features'];
+async function getPublicSystemSettings() {
+    return db_1.prisma.systemSetting.findMany({
+        where: { category: { in: publicCategories } },
+        orderBy: { key: 'asc' },
+    });
+}
+async function bulkUpdateSystemSettings(settingsList) {
+    if (!Array.isArray(settingsList)) {
+        throw new Error('Settings must be an array');
+    }
+    const results = await Promise.all(settingsList.map(async ({ key, value }) => {
+        if (!key || value === undefined)
+            return null;
+        const strKey = String(key);
+        const strValue = String(value);
+        return db_1.prisma.systemSetting.upsert({
+            where: { key: strKey },
+            update: { value: strValue },
+            create: { key: strKey, value: strValue, category: 'general' },
+        });
+    }));
+    return results.filter(Boolean);
 }
 async function getAuditLogs(page = 1, limit = 50, entity) {
     const where = {};
@@ -47,4 +93,7 @@ async function markNotificationRead(notificationId) {
 }
 async function markAllNotificationsRead(userId) {
     return db_1.prisma.notification.updateMany({ where: { userId, isRead: false }, data: { isRead: true } });
+}
+async function dismissNotification(notificationId) {
+    return db_1.prisma.notification.delete({ where: { id: notificationId } });
 }

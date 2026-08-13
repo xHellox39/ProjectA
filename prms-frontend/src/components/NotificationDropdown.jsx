@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { ChevronDown, Check, X, Bell } from 'lucide-react'
+import { Check, X, Bell } from 'lucide-react'
 import { adminApi } from '../api/admin'
 import './NotificationDropdown.css'
 
@@ -22,6 +22,33 @@ export default function NotificationDropdown() {
     loadNotifs()
     return () => { cancelled = true }
   }, [])
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      adminApi.getNotifications()
+        .then(res => {
+          const items = res?.data?.data || res?.data || []
+          setNotifs(items)
+        })
+        .catch(() => { /* ignore */ })
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Refresh when dropdown is opened
+  useEffect(() => {
+    if (!opened) return
+    const timeout = setTimeout(() => {
+      adminApi.getNotifications()
+        .then(res => {
+          const items = res?.data?.data || res?.data || []
+          setNotifs(items)
+        })
+        .catch(() => { /* ignore */ })
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [opened])
 
   async function handleMarkAsRead(id) {
     try {
@@ -67,7 +94,7 @@ export default function NotificationDropdown() {
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: unread > 0 ? '#ef4444' : 'transparent',
+            background: unread > 0 ? 'var(--error-state, #ef4444)' : 'transparent',
             position: 'absolute',
             top: -2,
             right: -2,

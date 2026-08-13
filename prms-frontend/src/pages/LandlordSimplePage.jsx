@@ -138,6 +138,7 @@ export default function LandlordSimplePage({ type = 'properties' }) {
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
 
+   
   useEffect(() => {
     let cancelled = false
 

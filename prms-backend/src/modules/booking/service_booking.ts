@@ -28,7 +28,7 @@ export async function createBooking(data: { propertyId: string; start_date: stri
   });
 }
 
-export async function updateBooking(id: string, data: { status?: string; totalAmount?: number; }) {
+export async function updateBooking(id: string, data: { status?: 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED'; totalAmount?: number; }) {
   return prisma.booking.update({ where: { id }, data, include: { user: true, property: true } });
 }
 
@@ -40,3 +40,39 @@ export async function getMyBookings(userId: string) {
   return prisma.booking.findMany({ where: { userId }, include: { property: true } });
 }
 
+<<<<<<< HEAD
+=======
+export async function checkOverlap(
+  propertyId: string,
+  startDate: string,
+  endDate: string,
+  excludeBookingId?: string,
+): Promise<{ hasOverlap: boolean; overlapping: any[] }> {
+  const overlaps = await prisma.booking.findMany({
+    where: {
+      propertyId,
+      status: { notIn: ['CANCELLED'] },
+      id: excludeBookingId ? { not: excludeBookingId } : undefined,
+      OR: [
+        {
+          start_date: { lte: new Date(endDate) },
+          end_date: { gte: new Date(startDate) },
+        },
+      ],
+    },
+    include: { user: { select: { id: true, full_name: true } } },
+  });
+
+  return { hasOverlap: overlaps.length > 0, overlapping: overlaps };
+}
+
+export async function getBookingSummary(): Promise<{ pending: number; confirmed: number; active: number; cancelled: number; total: number }> {
+  const [pending, confirmed, active, cancelled] = await Promise.all([
+    prisma.booking.count({ where: { status: 'PENDING' } }),
+    prisma.booking.count({ where: { status: 'CONFIRMED' } }),
+    prisma.booking.count({ where: { status: 'CHECKED_IN' } }),
+    prisma.booking.count({ where: { status: 'CANCELLED' } }),
+  ]);
+  return { pending, confirmed, active, cancelled, total: pending + confirmed + active + cancelled };
+}
+>>>>>>> d550114edf213ce9dcda2b7fbc074876c243d866

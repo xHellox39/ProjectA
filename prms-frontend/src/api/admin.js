@@ -5,8 +5,17 @@ export const adminApi = {
   getSettings() {
     return apiClient.get('/admin/settings');
   },
+  getSettingsByCategory(category) {
+    return apiClient.get(`/admin/settings/category/${category}`);
+  },
+  getPublicSettings() {
+    return apiClient.get('/admin/settings/public');
+  },
   updateSetting(data) {
     return apiClient.put('/admin/settings', data);
+  },
+  bulkUpdateSettings(dataArray) {
+    return apiClient.put('/admin/settings/bulk', { settings: dataArray });
   },
   addSetting(data) {
     return apiClient.post('/admin/settings', data);
@@ -30,4 +39,34 @@ export const adminApi = {
   dismiss(id) {
     return apiClient.delete(`/admin/notifications/${id}`);
   },
+
+  /* Dashboard / Reporting (proxied through /reports) */
+  getDashboardStats() {
+    return apiClient.get('/reports/dashboard');
+  },
+  getRevenueReport() {
+    return apiClient.get('/reports/revenue');
+  },
+
+  /* Theme / Customization */
+  getTheme() {
+    return apiClient.get('/admin/themes');
+  },
+  saveDraft(themeId, lightConfig, darkConfig) {
+    return apiClient.put(`/admin/themes/${themeId}/draft`, { themeId, lightConfig, darkConfig });
+  },
+  publishTheme(themeId) {
+    return apiClient.post(`/admin/themes/${themeId}/publish`);
+  },
+  getVersions(themeId) {
+    return apiClient.get(`/admin/themes/${themeId}/versions`);
+  },
+  restoreVersion(themeId, version) {
+    return apiClient.post(`/admin/themes/${themeId}/versions/${version}/restore`, { version });
+  },
+  /* Theme / Published theme */
+  getThemeById(themeId) {
+    return apiClient.get(`/admin/themes/${themeId}`);
+  },
+
 };

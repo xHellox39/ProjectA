@@ -5,11 +5,60 @@ export async function getSystemSettings() {
 }
 
 export async function updateSystemSetting(key: string, value: string) {
-  return prisma.systemSetting.update({ where: { key }, data: { value } });
+  if (!key || key === 'undefined') {
+    throw new Error('Setting key is required');
+  }
+  if (value === undefined || value === null) {
+    value = '';
+  }
+  const category = String(key).split('_')[0] ?? 'general';
+  return prisma.systemSetting.upsert({
+    where: { key: String(key) },
+    update: { value: String(value) },
+    create: { key: String(key), value: String(value), category },
+  });
 }
 
 export async function addSystemSetting(key: string, value: string, category = 'general', description?: string) {
   return prisma.systemSetting.create({ data: { key, value, category, description } });
+}
+
+export async function getSystemSettingsByCategory(category: string) {
+  return prisma.systemSetting.findMany({
+    where: { category },
+    orderBy: { key: 'asc' },
+  });
+}
+
+// Categories safe for public consumption (no sensitive internal config)
+const publicCategories = ['theme', 'branding', 'header', 'footer', 'homepage', 'features'];
+
+export async function getPublicSystemSettings() {
+  return prisma.systemSetting.findMany({
+    where: { category: { in: publicCategories } },
+    orderBy: { key: 'asc' },
+  });
+}
+
+export async function bulkUpdateSystemSettings(settingsList: Array<Record<string, unknown>>) {
+  if (!Array.isArray(settingsList)) {
+    throw new Error('Settings must be an array');
+  }
+
+  const results = await Promise.all(
+    settingsList.map(async ({ key, value }) => {
+      if (!key || value === undefined) return null;
+      const strKey = String(key);
+      const strValue = String(value);
+      return prisma.systemSetting.upsert({
+        where: { key: strKey },
+        update: { value: strValue },
+        create: { key: strKey, value: strValue, category: 'general' },
+      });
+    }),
+  );
+
+  return results.filter(Boolean);
 }
 
 export async function getAuditLogs(page = 1, limit = 50, entity?: string) {
@@ -22,8 +71,21 @@ export async function getAuditLogs(page = 1, limit = 50, entity?: string) {
   return { logs, total };
 }
 
-export async function createAuditLog(data: { userId?: string; action: string; entity: string; entityId?: string; details?: string; ipAddress?: string; userAgent?: string }) {
-  return prisma.auditLog.create({ data });
+export async function createAuditLog(data: { userId?: string; action: string; entity: string; entityId?: string; description?: string; ipAddress?: string; userAgent?: string; module?: string; status?: string; level?: string }) {
+  return prisma.auditLog.create({
+    data: {
+      userId: data.userId,
+      action: data.action,
+      entity: data.entity,
+      entityId: data.entityId,
+      description: data.description,
+      ipAddress: data.ipAddress,
+      userAgent: data.userAgent,
+      module: data.module || 'Admin',
+      status: data.status || 'Success',
+      level: data.level || 'info',
+    },
+  });
 }
 
 export async function getNotifications(userId: string, page = 1, limit = 20) {

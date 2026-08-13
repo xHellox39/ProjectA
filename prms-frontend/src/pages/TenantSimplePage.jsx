@@ -139,6 +139,11 @@ export default function TenantSimplePage({ type = 'bookings' }) {
   const [bookingError, setBookingError] = useState('')
   const [bookingLoading, setBookingLoading] = useState(false)
 
+<<<<<<< HEAD
+=======
+  /* ---- Fetch real data when type or user changes ---- */
+   
+>>>>>>> d550114edf213ce9dcda2b7fbc074876c243d866
   useEffect(() => {
     let cancelled = false
 

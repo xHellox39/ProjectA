@@ -1,8 +1,17 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import { apiClient, getApiError } from '../api/ApiClient'
+import { useSettings } from '../contexts/SettingsContext'
 import {
+  Activity,
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  Database,
   Download,
-  Gauge,
+  Loader,
+  Minus,
   Search,
+  Server,
   ShieldCheck,
   SlidersHorizontal,
   Users,
@@ -10,232 +19,455 @@ import {
 } from 'lucide-react'
 import './AdminDashboard.css'
 
+/* ------------------------------------------------------------------ */
+/*  API helpers                                                       */
+/* ------------------------------------------------------------------ */
+
+const API_ENDPOINTS = {
+  dashboard: '/reports/dashboard',
+  occupancy: '/reports/occupancy',
+  properties: '/reports/properties',
+  users: '/users',
+  auditLogs: '/admin/audit-logs',
+}
+
+function fetchJson(url) {
+  return apiClient.get(url).then((r) => r.data)
+}
+
+/* ------------------------------------------------------------------ */
+/*  Timestamp helpers                                                 */
+/* ------------------------------------------------------------------ */
+
+function formatTime(dateStr) {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function formatRelative(dateStr) {
+  if (!dateStr) return '—'
+  const now = Date.now()
+  const then = new Date(dateStr).getTime()
+  const diff = now - then
+  const secs = Math.floor(diff / 1000)
+  if (secs < 60) return 'Just now'
+  const mins = Math.floor(secs / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
+
+function formatCurrency(value) {
+  const num = Number(value) || 0
+  if (num >= 1_000_000) return `RM ${(num / 1_000_000).toFixed(1)}M`
+  if (num >= 1_000) return `RM ${num / 1_000}.0K`
+  return `RM ${num.toLocaleString('en-MY')}`
+}
+
+function formatCompact(value) {
+  const num = Number(value) || 0
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M'
+  if (num >= 1_000) return (num / 1_000).toFixed(1) + 'k'
+  return num.toLocaleString('en-MY')
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main component                                                    */
+/* ------------------------------------------------------------------ */
+
 function AdminDashboard() {
+  const { settings } = useSettings()
+
+  // Loading / error state
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // Real data
+  const [stats, setStats] = useState(null)
+  const [occupancy, setOccupancy] = useState(null)
+  const [users, setUsers] = useState([])
+  const [auditLogs, setAuditLogs] = useState([])
+  const [properties, setProperties] = useState([])
+
   useEffect(() => {
     localStorage.setItem('prmsDashboardPath', '/admin')
+
+    // Set dashboard timestamp (used for trend labels)
+    const dashboardTs = new Date().toISOString()
+
+    // Fetch all dashboard data in parallel
+    Promise.allSettled([
+      fetchJson(API_ENDPOINTS.dashboard).then((d) => d?.data ?? d),
+      fetchJson(API_ENDPOINTS.occupancy).then((d) => d?.data ?? d),
+      fetchJson(API_ENDPOINTS.properties).then((d) => d?.data ?? d),
+      fetchJson(API_ENDPOINTS.users).then((d) => (Array.isArray(d?.data) ? d.data : d?.data?.users ?? d?.users ?? []).slice(0, 8)),
+      fetchJson(API_ENDPOINTS.auditLogs + '?limit=12').then((d) => d?.data?.logs ?? d?.logs ?? d?.data ?? []),
+    ])
+      .then(([dash, occ, props, usr, logs]) => {
+        // Promise.allSettled wraps each result in {status, value|reason}
+        setStats(dash.status === 'fulfilled' ? dash.value : null)
+        setOccupancy(occ.status === 'fulfilled' ? occ.value : null)
+        setProperties(Array.isArray(props?.value) ? props.value : [])
+        setUsers(Array.isArray(usr?.value) ? usr.value : [])
+        setAuditLogs(Array.isArray(logs?.value) ? logs.value : [])
+      })
+      .finally(() => {
+        // Short delay so skeleton is visible briefly
+        setTimeout(() => setLoading(false), 400)
+      })
   }, [])
 
-  const users = [
-    {
-      initials: 'JD',
-      name: 'Julianna DeWitt',
-      email: 'julianna.d@prms.com',
-      role: 'Landlord',
-      status: 'Verified',
-      activity: '2 mins ago',
-    },
-    {
-      initials: 'MC',
-      name: 'Marcus Chen',
-      email: 'm.chen@outlook.com',
-      role: 'Tenant',
-      status: 'Pending KYC',
-      activity: '1 hour ago',
-    },
-    {
-      initials: 'SA',
-      name: 'Sarah Al-Zaid',
-      email: 'admin.sarah@prms.sys',
-      role: 'Admin',
-      status: 'Active',
-      activity: 'Now',
-    },
-  ]
+  /* ---- KPI data ---- */
+  const kpiData = useMemo(() => {
+    if (!stats) return null
 
-  const auditLogs = [
-    {
-      time: '14:22:01',
-      title: 'USER_LOGIN_SUCCESS',
-      detail: 'UID: 4421-XB | IP: 192.168.1.104',
-      type: 'success',
-    },
-    {
-      time: '14:21:45',
-      title: 'AUTH_FAILURE_RESTRICTED',
-      detail: 'Unauthorized API attempt on financials',
-      type: 'danger',
-    },
-    {
-      time: '14:20:12',
-      title: 'TRANSACTION_CLEARED',
-      detail: 'Ref: RM-8892 | RM 12,500.00',
-      type: 'success',
-    },
-  ]
+    // Total transactions (revenue)
+    const revenue = stats.totalRevenue || 0
+
+    return [
+      {
+        icon: Activity,
+        iconBg: 'icon-emerald',
+        label: 'Active Users',
+        value: formatCompact(stats.totalUsers),
+        sublabel: `${stats.totalProperties} properties listed`,
+        trend: `+${(stats.totalUsers || 0)}`,
+        trendDir: 'up',
+      },
+      {
+        icon: WalletCards,
+        iconBg: 'icon-purple',
+        label: 'Total Revenue',
+        value: formatCurrency(revenue),
+        sublabel: `${stats.totalBookings || 0} bookings processed`,
+        trend: formatCurrency(revenue),
+        trendDir: revenue > 0 ? 'up' : 'neutral',
+      },
+      {
+        icon: Database,
+        iconBg: 'icon-blue',
+        label: 'Occupancy',
+        value: occupancy ? `${occupancy.occupancyRate}%` : '—',
+        sublabel: `${occupancy ? occupancy.activeBookings : 0} active of ${occupancy ? occupancy.totalProperties || 0 : 0} total`,
+        trend: occupancy ? `${occupancy.occupancyRate}%` : '—',
+        trendDir: (occupancy && occupancy.occupancyRate > 70) ? 'up' : 'neutral',
+      },
+      {
+        icon: ShieldCheck,
+        iconBg: 'icon-rose',
+        label: 'System Integrity',
+        value: 'Secure',
+        sublabel: `${Array.isArray(auditLogs) ? auditLogs.length : 0} recent audit events`,
+        trend: 'OK',
+        trendDir: 'up',
+      },
+    ]
+  }, [stats, occupancy, auditLogs])
+
+  /* ---- Property clusters (group by status) ---- */
+  const propertyClusters = useMemo(() => {
+    if (!properties.length) return []
+    const byStatus = {}
+    for (const p of properties) {
+      const key = p?.status || 'Unknown'
+      if (!byStatus[key]) byStatus[key] = { label: key, count: 0, bookings: 0 }
+      byStatus[key].count += 1
+      byStatus[key].bookings += p?.bookingCount || 0
+    }
+    return Object.values(byStatus).slice(0, 4)
+  }, [properties])
+
+  /* ---- KPI Card helper ---- */
+  function KpiCard({ icon: Icon, iconBg, label, value, sublabel, trend, trendDir }) {
+    const TrendIcon =
+      trendDir === 'up' ? (
+        <ArrowUp size={14} className="text-status-success" />
+      ) : trendDir === 'down' ? (
+        <ArrowDown size={14} className="text-status-error" />
+      ) : (
+        <Minus size={14} className="text-text-secondary" />
+      )
+
+    return (
+      <div className="kpi-card">
+        <div className="kpi-card-top">
+          <div className={`kpi-icon-wrap ${iconBg}`}>
+            <Icon size={20} />
+          </div>
+          {trend && (
+            <span className={`trend-pill ${trendDir === 'up' ? 'positive' : trendDir === 'down' ? 'negative' : 'neutral'}`}>
+              {TrendIcon}
+              {trend}
+            </span>
+          )}
+        </div>
+        <div className="kpi-card-body">
+          <span className="kpi-label">{label}</span>
+          <div className="kpi-value">{value}</div>
+          {sublabel && <span className="kpi-sublabel">{sublabel}</span>}
+        </div>
+      </div>
+    )
+  }
+
+  /* ---- User row ---- */
+  function getInitials(name) {
+    if (!name) return '?'
+    return name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+  }
+
+  function getRoleName(user) {
+    // user.UserRole is an array of { role: { name: 'Admin' } }
+    if (Array.isArray(user?.UserRole)) {
+      const first = user.UserRole[0]?.role?.name
+      return first || 'User'
+    }
+    return user?.role || 'User'
+  }
+
+  function roleClass(roleName) {
+    if (!roleName) return 'user-role--landlord'
+    const lower = roleName.toLowerCase()
+    if (lower.includes('admin')) return 'user-role--admin'
+    if (lower.includes('landlord')) return 'user-role--landlord'
+    if (lower.includes('agent')) return 'user-role--landlord'
+    return 'user-role--tenant'
+  }
+
+  /* ---- Audit log mapping ---- */
+  const mappedLogs = auditLogs.map((log) => {
+    const level = (log.level || '').toLowerCase()
+    const status = (log.status || '').toLowerCase()
+    const isDanger = level === 'error' || level === 'warn' || status === 'failure' || status === 'failed' || log.action?.includes('FAIL') || log.action?.includes('DENIED')
+    return {
+      time: formatTime(log.created_at),
+      title: log.action || 'SYSTEM_EVENT',
+      detail: [
+        log.module ? `MOD: ${log.module}` : null,
+        log.user?.full_name ? `USER: ${log.user.full_name}` : log.username ? `USER: ${log.username}` : null,
+        log.entity ? `ENTITY: ${log.entity}` : null,
+        log.description ? log.description : null,
+      ]
+        .filter(Boolean)
+        .join(' | '),
+      type: isDanger ? 'danger' : 'success',
+    }
+  })
 
   return (
-    <>
-      <section className="admin-dash-hero">
+    <div className="admin-dashboard-page" data-customize-id="global.content">
+      {/* ---- Hero ---- */}
+      <div className="landlord-page-title-row">
         <div>
-          <h1>System Health Console</h1>
+          <h1>
+            <span className="material-symbols-outlined brand-icon">settings_applications</span>
+            System Health Console
+          </h1>
           <p>Infrastructure monitoring and global operations audit overview.</p>
         </div>
 
-        <div className="admin-dash-actions">
-          <button type="button" className="admin-dash-light-btn">
+        <div className="landlord-page-actions">
+          <button type="button" className="btn-outline">
             <SlidersHorizontal size={18} />
             Filter
           </button>
-
-          <button type="button" className="admin-dash-dark-btn">
+          <button type="button" className="btn-primary-solid">
             <Download size={18} />
             Export
           </button>
         </div>
+      </div>
+
+      {/* ---- Error banner ---- */}
+      {error && !loading && (
+        <div style={{
+          background: 'rgba(239,68,68,0.08)',
+          border: '1px solid rgba(239,68,68,0.25)',
+          borderRadius: 'var(--radius-md)',
+          padding: '12px 16px',
+          marginBottom: 'var(--spacing-md)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          color: 'var(--status-error)',
+          fontSize: '14px',
+        }}>
+          <AlertCircle size={18} />
+          <span>Failed to load dashboard data: {error}. Data shown may be stale.</span>
+        </div>
+      )}
+
+      {/* ---- KPI Metrics ---- */}
+      <section className="kpi-card-grid">
+        {loading ? (
+          <>
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="kpi-card kpi-skeleton">
+                <div className="skeleton-line skeleton-sm" />
+                <div className="skeleton-line skeleton-lg" />
+                <div className="skeleton-line skeleton-xs" />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            {kpiData
+              ? kpiData.map((kpi, i) => <KpiCard key={i} {...kpi} />)
+              : /* Fallback when no data */
+                [
+                  { icon: Activity, iconBg: 'icon-emerald', label: 'Active Users', value: '—', sublabel: 'No data', trend: '—', trendDir: 'neutral' },
+                  { icon: WalletCards, iconBg: 'icon-purple', label: 'Total Revenue', value: 'RM 0', sublabel: 'No transactions', trend: '0', trendDir: 'neutral' },
+                  { icon: Database, iconBg: 'icon-blue', label: 'Occupancy', value: '—', sublabel: 'No properties', trend: '—', trendDir: 'neutral' },
+                  { icon: ShieldCheck, iconBg: 'icon-rose', label: 'System Integrity', value: 'Secure', sublabel: 'Monitoring active', trend: 'OK', trendDir: 'up' },
+                ].map((kpi, i) => <KpiCard key={i} {...kpi} />)}
+          </>
+        )}
       </section>
 
-      <section className="admin-dash-metrics">
-        <article className="admin-dash-metric-card">
-          <div className="admin-dash-metric-icon green">
-            <Gauge size={27} />
-          </div>
-
-          <div>
-            <p>Uptime</p>
-            <h3>99.98%</h3>
-          </div>
-
-          <div className="admin-dash-progress">
-            <span></span>
-          </div>
-        </article>
-
-        <article className="admin-dash-metric-card">
-          <div className="admin-dash-metric-icon purple">
-            <WalletCards size={27} />
-          </div>
-
-          <div>
-            <p>Transactions</p>
-            <h3>RM 4.2M</h3>
-          </div>
-
-          <strong className="admin-dash-growth">+12%</strong>
-        </article>
-
-        <article className="admin-dash-metric-card">
-          <div className="admin-dash-metric-icon blue">
-            <Users size={27} />
-          </div>
-
-          <div>
-            <p>Active Users</p>
-            <h3>12,482</h3>
-          </div>
-        </article>
-
-        <article className="admin-dash-metric-card">
-          <div className="admin-dash-metric-icon red">
-            <ShieldCheck size={27} />
-          </div>
-
-          <div>
-            <p>Integrity</p>
-            <h3>Secure</h3>
-          </div>
-
-          <strong className="admin-dash-alert">2 Alerts</strong>
-        </article>
-      </section>
-
-      <section className="admin-dash-lower">
-        <article className="admin-dash-directory">
-          <div className="admin-dash-panel-header">
-            <h2>User Directory</h2>
-
-            <div className="admin-dash-search">
-              <Search size={17} />
+      {/* ---- User Directory + Right Panel ---- */}
+      <section className="dashboard-main-grid">
+        {/* User directory */}
+        <div className="panel-card admin-directory">
+          <div className="panel-title">
+            <div>
+              <h3 className="panel-title-text">User Directory</h3>
+              <p className="panel-subtitle">
+                {loading ? 'Loading...' : `${users.length} users loaded`}
+              </p>
+            </div>
+            <div className="admin-search">
+              <Search size={16} />
               <input type="text" placeholder="Search users..." />
             </div>
           </div>
 
-          <div className="admin-dash-table">
-            <div className="admin-dash-table-head">
-              <p>User</p>
-              <p>Role</p>
-              <p>Status</p>
-              <p>Activity</p>
+          <div className="admin-table-warp">
+            <div className="admin-table-head">
+              <span>User</span>
+              <span>Role</span>
+              <span>Status</span>
+              <span>Last Seen</span>
             </div>
 
-            {users.map((user) => (
-              <div className="admin-dash-table-row" key={user.email}>
-                <div className="admin-dash-user-cell">
-                  <div className="admin-dash-user-avatar">{user.initials}</div>
-
-                  <div>
-                    <h3>{user.name}</h3>
-                    <p>{user.email}</p>
+            {loading ? (
+              /* Loading rows */
+              [1, 2, 3, 4].map((n) => (
+                <div key={n} className="admin-table-row">
+                  <div className="admin-user-cell">
+                    <div className="admin-user-avatar" style={{ background: 'var(--surface-container)', animation: 'pulse-dot 1.5s ease infinite' }} /><div><h4 style={{ color: 'var(--surface-container)' }}>Loading...</h4></div>
                   </div>
                 </div>
-
-                <div>
-                  <span className={`admin-dash-role ${user.role.toLowerCase()}`}>
-                    {user.role}
-                  </span>
-                </div>
-
-                <div>
-                  <span
-                    className={`admin-dash-status ${
-                      user.status === 'Pending KYC' ? 'pending' : 'active'
-                    }`}
-                  >
-                    {user.status}
-                  </span>
-                </div>
-
-                <p className="admin-dash-activity">{user.activity}</p>
+              ))
+            ) : !users.length ? (
+              <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                No users found
               </div>
-            ))}
-          </div>
-        </article>
+            ) : (
+              /* Real user rows */
+              users.map((user) => {
+                const roleName = getRoleName(user)
+                const isActive = user.is_active !== false
+                return (
+                  <div className="admin-table-row" key={user.id}>
+                    <div className="admin-user-cell">
+                      <div className="admin-user-avatar">{getInitials(user.full_name)}</div>
+                      <div className="admin-user-info">
+                        <h4>{user.full_name || 'Unnamed'}</h4>
+                        <p>{user.email}</p>
+                      </div>
+                    </div>
 
-        <aside className="admin-dash-right">
-          <article className="admin-dash-audit">
-            <div className="admin-dash-audit-header">
-              <h2>Global Audit Log</h2>
-              <span>
-                <i></i>
+                    <span className={`user-role ${roleClass(roleName)}`}>{roleName}</span>
+                    <span className={`user-status ${isActive ? 'user-status--active' : 'user-status--pending'}`}>
+                      <span className="status-dot" />
+                      {isActive ? 'Active' : 'Suspended'}
+                    </span>
+                    <p className="admin-activity">{formatRelative(user.updated_at || user.id)}</p>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Right panel: Audit Log + Clusters */}
+        <div className="admin-right-col">
+          {/* Audit log */}
+          <div className="panel-card admin-audit dark-panel">
+            <div className="audit-header">
+              <h3 className="panel-title-text">Global Audit Log</h3>
+              <span className="audit-live">
+                <span className="live-dot" />
                 LIVE
               </span>
             </div>
 
-            <div className="admin-dash-audit-list">
-              {auditLogs.map((log) => (
-                <div
-                  className={`admin-dash-audit-item ${log.type}`}
-                  key={`${log.time}-${log.title}`}
-                >
-                  <p>{log.time}</p>
-
-                  <div>
-                    <h3>{log.title}</h3>
-                    <span>{log.detail}</span>
+            <div className="audit-list custom-scrollbar">
+              {loading ? (
+                [1, 2, 3].map((n) => (
+                  <div key={n} className="audit-item">
+                    <span className="audit-time">--:--:--</span>
+                    <div className="audit-body">
+                      <h4>LOADING...</h4>
+                      <p>Fetching audit trail...</p>
+                    </div>
                   </div>
+                ))
+              ) : !mappedLogs.length ? (
+                <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--secondary-fixed)', fontSize: '13px' }}>
+                  No audit events recorded
                 </div>
-              ))}
+              ) : (
+                mappedLogs.map((log, idx) => (
+                  <div key={idx} className={`audit-item audit-${log.type}`}>
+                    <span className="audit-time">{log.time}</span>
+                    <div className="audit-body">
+                      <h4>{log.title}</h4>
+                      <p>{log.detail}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          </article>
+          </div>
 
-          <article className="admin-dash-notes">
-            <h2>Operational Notes</h2>
-            <p>12 clusters online across Southeast Asia.</p>
-
-            <div className="admin-dash-clusters">
-              <div>
-                <span>KL</span>
-                <strong>8.2k</strong>
-              </div>
-
-              <div>
-                <span>SG</span>
-                <strong>4.1k</strong>
-              </div>
+          {/* Operational notes */}
+          <div className="panel-card admin-notes">
+            <div className="notes-header">
+              <h3 className="panel-title-text">Property Overview</h3>
             </div>
-          </article>
-        </aside>
+
+            <p className="notes-text">
+              {loading
+                ? 'Loading properties...'
+                : `${properties.length} properties tracked across the platform.`}
+            </p>
+
+            <div className="clusters-grid">
+              {loading ? (
+                [1, 2, 3].map((n) => (
+                  <div key={n} className="cluster-tile">
+                    <span>...</span><strong>--</strong>
+                  </div>
+                ))
+              ) : propertyClusters.length ? (
+                propertyClusters.map((cluster) => (
+                  <div key={cluster.label} className="cluster-tile" title={`${cluster.label}: ${cluster.count} properties, ${cluster.bookings} bookings`}>
+                    <span>{cluster.label.slice(0, 2).toUpperCase()}</span>
+                    <strong>{cluster.count}</strong>
+                  </div>
+                ))
+              ) : (
+                <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>No properties</div>
+              )}
+            </div>
+          </div>
+        </div>
       </section>
-    </>
+    </div>
   )
 }
 

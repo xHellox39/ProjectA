@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { roleToPath } from '../contexts/AuthContext';
+import { roleToPath } from '../config/routes';
 
 /**
  * Redirect to /login when user is not authenticated.
@@ -16,13 +16,13 @@ export function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" replace />;
   }
 
-  // Role guard (AUTH-006)
-  if (allowedRoles && allowedRoles.length > 0 && user) {
+  // Issue #11: Strengthen role-based route protection — case-insensitive matching
+  if (allowedRoles && allowedRoles.length > 0 && user?.role) {
+    const userRole = user.role.toLowerCase();
     const hasAccess = allowedRoles.some(
-      (role) => role.toLowerCase() === user.role?.toLowerCase()
+      (role) => role.toLowerCase() === userRole
     );
     if (!hasAccess) {
-      // Redirect to their role-appropriate dashboard
       const fallback = roleToPath(user.role);
       return <Navigate to={fallback} replace />;
     }
@@ -40,7 +40,7 @@ export function PublicRoute({ children }) {
 
   if (loading) return null;
 
-  if (isAuthenticated && user) {
+  if (isAuthenticated && user?.role) {
     const path = roleToPath(user.role);
     return <Navigate to={path} replace />;
   }

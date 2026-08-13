@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { motion } from 'framer-motion'
 import {
   Building2,
@@ -16,7 +18,10 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
+import { getImageUrl } from '../config/imageHelper';
 import { propertyApi, getApiError } from '../api'
+import { ROUTES, getAddPropertyRoute, getPropertyDetailPath } from '../config/routes'
+import './Properties.css'
 
 const PROPERTY_TYPES = [
   { key: 'all', label: 'All Types', icon: Building2 },
@@ -25,12 +30,23 @@ const PROPERTY_TYPES = [
   { key: 'Retail', label: 'Retail', icon: Store },
 ]
 
+const STATUS_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'available', label: 'Available' },
+  { key: 'occupied', label: 'Occupied' },
+  { key: 'maintenance', label: 'Maintenance' },
+  { key: 'inactive', label: 'Inactive' },
+]
+
 function Properties() {
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [properties, setProperties] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [viewMode, setViewMode] = useState('grid')
   const [activeType, setActiveType] = useState('all')
+  const [activeStatus, setActiveStatus] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -40,17 +56,21 @@ function Properties() {
     setLoading(true)
     setError(null)
     try {
-      const params = { page: currentPage, limit: perPage }
-      if (activeType !== 'all') params.type = activeType
-      if (searchTerm.trim()) params.search = searchTerm.trim()
-
-      const { data } = await propertyApi.list(params)
-      const list = data.properties || data.data || data
+      const { data } = await propertyApi.list({
+        page: currentPage,
+        limit: perPage,
+        type: activeType === 'all' ? undefined : activeType,
+        search: searchTerm.trim() || undefined,
+      })
+      const list = data?.data || data?.properties || data
       setProperties(Array.isArray(list) ? list : [])
 
-      const total =
-        data.totalCount ?? data.total ?? data.pagination?.total ?? list.length
-      setTotalCount(total)
+      setTotalCount(
+        data?.pagination?.total ??
+          data?.totalCount ??
+          data?.total ??
+          list.length
+      )
     } catch (err) {
       setError(getApiError(err))
       setProperties([])
@@ -59,15 +79,15 @@ function Properties() {
     }
   }
 
+  // Fetch on mount, page change, or type filter change
   useEffect(() => {
     fetchProperties()
   }, [currentPage, activeType])
 
-  /* Debounced search */
+  // Debounced search: reset page and trigger fetch via the above effect
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1)
-      fetchProperties()
     }, 400)
     return () => clearTimeout(timer)
   }, [searchTerm])
@@ -89,46 +109,57 @@ function Properties() {
     return 'gray'
   }
 
+  /* Client-side status filtering */
+  const filteredProperties = properties.filter((p) => {
+    if (activeStatus === 'all') return true
+    const pStatus = (p.status || '').toLowerCase()
+    return pStatus === activeStatus.toLowerCase()
+  })
+
   return (
     <div className="properties-page">
-      {/* ── Header ── */}
-      <div className="properties-header">
-        <div className="properties-title-row">
-          <h1>Properties</h1>
-          <p>Browse and manage all property listings in your portfolio.</p>
+      {/* ── Title bar ── */}
+      <div className="properties-titlebar">
+        <div>
+          <h1 className="page-title">Properties</h1>
+          <p className="page-subtitle">Browse and manage all property listings in your portfolio.</p>
         </div>
-
-        <motion.button
-          type="button"
-          className="btn-primary"
-          onClick={() => alert('Create property modal coming soon')}
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.97 }}
-        >
-          <Plus size={18} /> Add Property
-        </motion.button>
+        {getAddPropertyRoute(user?.role) && (
+          <motion.button
+            type="button"
+            className="btn-primary-solid"
+            onClick={() => {
+              const addRoute = getAddPropertyRoute(user?.role)
+              if (addRoute) navigate(addRoute)
+            }}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <Plus size={16} /> Add Property
+          </motion.button>
+        )}
       </div>
 
-      {/* ── Filters ── */}
-      <div className="properties-toolbar">
+      {/* ── Toolbar: Search + Filters + View toggle ── */}
+      <div className="panel-card properties-toolbar">
         <form className="properties-search" onSubmit={handleSearch}>
-          <Search size={18} />
+          <Search size={18} className="search-icon" />
           <input
             type="text"
             placeholder="Search properties..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <Filter size={18} className="properties-filter-icon" />
+          <Filter size={18} className="filter-icon" />
         </form>
 
-        <div className="properties-view-controls">
+        <div className="properties-controls">
           <div className="properties-type-filters">
             {PROPERTY_TYPES.map((t) => (
               <button
                 type="button"
                 key={t.key}
-                className={`btn-type ${activeType === t.key ? 'active' : ''}`}
+                className={`chip-btn ${activeType === t.key ? 'active' : ''}`}
                 onClick={() => {
                   setActiveType(t.key)
                   setCurrentPage(1)
@@ -140,11 +171,29 @@ function Properties() {
             ))}
           </div>
 
-          <div className="properties-view-toggle">
+          <div className="properties-status-filters">
+            {STATUS_FILTERS.map((s) => (
+              <button
+                type="button"
+                key={s.key}
+                className={`status-btn ${activeStatus === s.key ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveStatus(s.key)
+                  setCurrentPage(1)
+                }}
+              >
+                <span className={`status-dot status-${statusColor(s.key)}`} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="view-toggle">
             <button
               type="button"
               className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
               onClick={() => setViewMode('grid')}
+              title="Grid view"
             >
               <Grid3x3 size={18} />
             </button>
@@ -152,6 +201,7 @@ function Properties() {
               type="button"
               className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
               onClick={() => setViewMode('list')}
+              title="List view"
             >
               <List size={18} />
             </button>
@@ -159,95 +209,128 @@ function Properties() {
         </div>
       </div>
 
-      {/* ── Error ── */}
+      {/* ── Error state ── */}
       {error && (
-        <motion.div className="properties-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          {error}
+        <motion.div
+          className="panel-error"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <span className="error-text">{error}</span>
         </motion.div>
       )}
 
-      {/* ── Loading ── */}
+      {/* ── Loading state ── */}
       {loading && (
-        <div className="properties-loading">
+        <div className="loading-state">
           <div className="spinner" />
           <p>Loading properties...</p>
         </div>
       )}
 
-      {/* ── Grid / List ── */}
+      {/* ── Properties grid / list ── */}
       {!loading && !error && (
         <>
-          {properties.length === 0 ? (
-            <div className="properties-empty">
-              <Building2 size={56} />
+          {filteredProperties.length === 0 ? (
+            <div className="panel-card empty-state">
+              <div className="empty-icon">
+                <Building2 size={56} />
+              </div>
               <h2>No properties found</h2>
               <p>Try adjusting your filters or add a new property.</p>
+              {getAddPropertyRoute(user?.role) && (
+                <motion.button
+                  type="button"
+                  className="btn-outline"
+                  onClick={() => navigate(getAddPropertyRoute(user?.role))}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <Plus size={16} /> Add Property
+                </motion.button>
+              )}
             </div>
           ) : (
             <>
-              <div className={`properties-${viewMode}`}>
-                {properties.map((p, i) => (
-                  <motion.div
-                    key={p._id || p.id || i}
-                    className="property-item"
-                    initial={{ opacity: 0, y: 18 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.025 }}
-                    whileHover={{ y: -4, scale: 1.01 }}
-                  >
-                    {/* Image card (grid) */}
-                    <div className="property-card">
-                      <div className="property-card-image">
-                        {p.image || p.thumbnail ? (
-                          <img src={p.image} alt={p.name || p.title} />
-                        ) : (
-                          <Building2 size={40} />
-                        )}
-                        <span
-                          className={`property-status status-${statusColor(
-                            p.status || 'available'
-                          )}`}
-                        >
-                          {p.status || 'Available'}
-                        </span>
-                      </div>
+              {/* Filtered count when a filter is active */}
+              {(activeStatus !== 'all' || activeType !== 'all' || searchTerm) && (
+                <div className="filter-count">
+                  Showing {filteredProperties.length} of {properties.length} properties
+                </div>
+              )}
 
-                      <div className="property-card-body">
-                        <h3>{p.name || p.title || 'Property'}</h3>
-                        <div className="property-location-row">
-                          <MapPin size={14} />
-                          <span>
-                            {p.location || p.address || 'Location not set'}
+              {/* ── Grid / List ── */}
+              <div className={`properties-${viewMode}`} role="list">
+                {filteredProperties.map((p, i) => {
+                  const pid = p._id || p.id || i
+                  const stype = statusColor(p.status || 'available')
+                  return (
+                    <motion.div
+                      key={pid}
+                      className="property-item"
+                      initial={{ opacity: 0, y: 18 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.025 }}
+                      whileHover={{ y: -4, scale: 1.01 }}
+                      onClick={() => navigate(getPropertyDetailPath(user?.role, pid))}
+                      onKeyPress={(e) => e.key === 'Enter' && navigate(getPropertyDetailPath(user?.role, pid))}
+                      role="listitem"
+                      tabIndex={0}
+                    >
+                      <div className="property-card">
+                        {/* Image */}
+                        <div className="property-card-image">
+                          {(() => {
+                            const imageUrl = p.images?.[0]?.url || p.image || p.thumbnail;
+                            if (imageUrl) {
+                              return <img src={getImageUrl(imageUrl)} alt={p.name || p.title} />;
+                            }
+                            return (
+                              <div className="image-placeholder">
+                                <Building2 size={40} />
+                              </div>
+                            );
+                          })()}
+                          <span className={`status-badge status-${stype}`}>
+                            {p.status || 'Available'}
                           </span>
                         </div>
-                        <div className="property-type-row">
-                          <span className="property-type-badge">
+
+                        {/* Body */}
+                        <div className="property-card-body">
+                          <h3 className="property-name">{p.name || p.title || 'Property'}</h3>
+                          <div className="property-location">
+                            <MapPin size={14} />
+                            <span>{p.location || p.address || 'Location not set'}</span>
+                          </div>
+                          <span className={`type-badge type-${(p.type || 'General').toLowerCase()}`}>
                             {p.type || 'General'}
                           </span>
-                        </div>
-                        <div className="property-bottom-row">
-                          <div className="property-price">
-                            <DollarSign size={14} />
-                            <span>
-                              {Number(p.price || p.rent || 0).toLocaleString()}{' '}
-                              / mo
-                            </span>
-                          </div>
-                          <div className="property-units">
-                            {p.unitCount || p.unit_count || 0} units
+                          <div className="property-footer">
+                            <div className="property-price">
+                              <DollarSign size={14} />
+                              <span>
+                                {Number(p.price || p.rent || 0).toLocaleString()}{' '}
+                                /mo
+                              </span>
+                            </div>
+                            <div className="property-units">
+                              {p.unitCount || p.unit_count || 0} units
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  )
+                })}
               </div>
 
               {/* ── Pagination ── */}
               {totalPages > 1 && (
-                <div className="properties-pagination">
+                <div className="pagination-bar">
                   <button
                     type="button"
+                    className="btn-outline"
                     disabled={currentPage <= 1}
                     onClick={() => setCurrentPage((c) => Math.max(c - 1, 1))}
                   >
@@ -260,6 +343,7 @@ function Properties() {
 
                   <button
                     type="button"
+                    className="btn-outline"
                     disabled={currentPage >= totalPages}
                     onClick={() =>
                       setCurrentPage((c) => Math.min(c + 1, totalPages))

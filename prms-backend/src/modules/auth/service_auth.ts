@@ -9,7 +9,7 @@ export async function registerUser(email: string, password: string, full_name?: 
   if (existing) throw new Error('Email already registered');
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const firebase_uid = uuidv4();
+  const firebase_uid = "";
 
   const user = await prisma.user.create({
     data: {
@@ -70,16 +70,55 @@ export async function getCurrentUser(userId: string) {
     where: { id: userId },
     select: {
       id: true, email: true, full_name: true, phone: true,
-      profile_img_url: true, is_active: true, created_at: true,
+      profile_img_url: true, firebase_uid: true, is_active: true, created_at: true,
       UserRole: { include: { role: true } },
     },
   });
 }
 
-export async function updateUserProfile(userId: string, data: { full_name?: string; phone?: string; profile_img_url?: string }) {
-  return prisma.user.update({ where: { id: userId }, data });
+export async function updateUserProfile(
+  userId: string,
+  data: { full_name?: string; phone?: string; profile_img_url?: string; role?: string }
+) {
+  // If role is provided, update the UserRole association
+  if (data.role) {
+    const role = await prisma.role.findUnique({ where: { name: data.role } });
+    if (!role) throw new Error(`Role ${data.role} not found`);
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId, roleId: role.id } },
+      update: {},
+      create: { userId, roleId: role.id },
+    });
+  }
+
+  const { role, ...userFields } = data;
+  return prisma.user.update({
+    where: { id: userId },
+    data: userFields,
+    include: {
+      UserRole: { include: { role: true } },
+    },
+  });
 }
 
 export async function logoutUser(userId: string) {
   await prisma.user.update({ where: { id: userId }, data: { refreshToken: null } });
+}
+
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.passwordHash) throw new Error('Password-based account required');
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) throw new Error('Current password is incorrect');
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  return prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: newHash },
+  });
 }

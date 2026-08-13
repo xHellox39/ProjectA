@@ -9,6 +9,8 @@ import PageTransition from './PageTransition'
 import { useAuth } from '../contexts/AuthContext'
 import { buildNavItems, resolveActivePage } from './NavigationConfig'
 import NotificationDropdown from './NotificationDropdown'
+import ProfileDropdown from './ProfileDropdown'
+import ThemeSwitcher from './ThemeSwitcher'
 import './LandlordLayout.css'
 
 function LandlordLayout() {
@@ -20,11 +22,6 @@ function LandlordLayout() {
   const navItems = buildNavItems(role)
   const activePage = resolveActivePage(location.pathname, role)
 
-  const initials = user
-    ? (user.full_name || user.name || 'AS').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-    : 'AS'
-  const displayName = user?.full_name || user?.name || '—'
-
   function safeNavigate(path) {
     if (location.pathname !== path) navigate(path)
   }
@@ -34,8 +31,8 @@ function LandlordLayout() {
   }
 
   return (
-    <main className="landlord-layout-shell">
-      <aside className="landlord-layout-sidebar">
+    <main className="landlord-layout-shell" data-customize-id="global.page">
+      <aside className="landlord-layout-sidebar" data-customize-id="global.sidebar">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = activePage === item.key
@@ -79,34 +76,27 @@ function LandlordLayout() {
         </motion.button>
       </aside>
 
-      <section className="landlord-layout-main">
-        <header className="landlord-layout-topbar">
-          <div className="landlord-layout-brand" onClick={() => safeNavigate('/landlord')}>
-            <h2>PRMS</h2>
+      <section className="landlord-layout-main" data-customize-id="global.content">
+        <header className="landlord-layout-topbar" data-customize-id="global.header">
+          <div className="landlord-layout-brand" onClick={() => safeNavigate('/landlord')} data-customize-id="global.brand">
+            <h2 data-customize-id="global.brand.title">PRMS</h2>
             <span></span>
-            <p>{role} Portal</p>
+            <p data-customize-id="global.brand.subtitle">{role} Portal</p>
           </div>
 
-          <div className="landlord-layout-search">
+          <div className="landlord-layout-search" data-customize-id="global.search">
             <Search size={22} />
             <input type="text" placeholder="Search portfolios..." />
           </div>
 
-          <div className="landlord-layout-actions">
+          <div className="landlord-layout-actions" data-customize-id="global.top-actions">
             <NotificationDropdown />
-
-            <motion.div className="landlord-layout-profile" whileHover={{ scale: 1.02 }}>
-              <div>
-                <h3>{displayName}</h3>
-                <p>{role}</p>
-              </div>
-
-              <div className="landlord-layout-avatar">{initials}</div>
-            </motion.div>
+            <ThemeSwitcher />
+            <ProfileDropdown prefix="/landlord" />
           </div>
         </header>
 
-        <div className="landlord-layout-content">
+        <div className="landlord-layout-content" data-customize-id="global.body">
           <PageTransition>
             <Outlet />
           </PageTransition>

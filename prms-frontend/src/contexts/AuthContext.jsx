@@ -1,5 +1,6 @@
-import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
 import { authApi, getApiError } from '../api';
+import { ROUTES, roleToPath } from '../config/routes';
 
 /* ------ Actions ------ */
 
@@ -57,6 +58,7 @@ function AuthProvider({ children }) {
       full_name: user.full_name,
       phone: user.phone,
       profile_img_url: user.profile_img_url,
+      firebase_uid: user.firebase_uid,
       role: user.role || 'Tenant',
     };
   }
@@ -69,7 +71,9 @@ function AuthProvider({ children }) {
       dispatch({ type: ACTIONS.CLEAR_ERROR });
       try {
         await authApi.register(data);
-        if (navigate) navigate('/login');
+        // After successful register, redirect to login page so user can authenticate
+        // Then the login function will redirect to the proper dashboard based on role
+        if (navigate) navigate(ROUTES.public.login);
         return { success: true };
       } catch (err) {
         const msg = getApiError(err);
@@ -121,18 +125,21 @@ function AuthProvider({ children }) {
   /* ------ Google Login (AUTH-009) ------ */
 
   const googleLogin = useCallback(
-    async (idToken, navigate) => {
+    async (googleAuth, navigate) => {
       dispatch({ type: ACTIONS.SET_LOADING, payload: true });
       dispatch({ type: ACTIONS.CLEAR_ERROR });
       try {
-        const { data } = await authApi.googleLogin(idToken);
+        const { data } = await authApi.googleLogin(googleAuth);
 
-        // Store tokens
+        // Store tokens — successResponse wraps in {success, message, data: {user, tokens, isNewUser}}
         const tokens = data?.data?.tokens || data?.tokens;
         if (tokens) {
           localStorage.setItem('accessToken', tokens.accessToken);
           localStorage.setItem('refreshToken', tokens.refreshToken);
         }
+
+        // Issue #3: isNewUser flag from backend
+        const isNewUser = !!data?.data?.isNewUser;
 
         // Fetch current user with normalized shape
         const { data: meData } = await authApi.getMe();
@@ -141,11 +148,17 @@ function AuthProvider({ children }) {
         dispatch({ type: ACTIONS.SET_USER, payload: user });
 
         if (navigate && user) {
-          const path = roleToPath(user.role);
-          navigate(path);
+          // Issue #3: New Google users go to role-selection for onboarding
+          if (isNewUser) {
+            localStorage.setItem('prmsOnboarding', 'true');
+            navigate('/role-selection');
+          } else {
+            const path = roleToPath(user.role);
+            navigate(path);
+          }
         }
 
-        return { success: true, user };
+        return { success: true, user, isNewUser };
       } catch (err) {
         const msg = getApiError(err);
         dispatch({ type: ACTIONS.SET_ERROR, payload: msg });
@@ -168,7 +181,8 @@ function AuthProvider({ children }) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('prmsDashboardPath');
-      localStorage.removeItem('prmsSelectedRole');
+      sessionStorage.removeItem('prmsSelectedRole');
+      localStorage.removeItem('prmsOnboarding');
       navigate?.('/login');
       dispatch({ type: ACTIONS.LOGOUT });
     },
@@ -190,6 +204,19 @@ function AuthProvider({ children }) {
     }
   }, []);
 
+  /* ------ Change password ------ */
+
+  const changePassword = useCallback(async ({ currentPassword, newPassword }) => {
+    try {
+      await authApi.changePassword({ currentPassword, newPassword });
+      return { success: true };
+    } catch (err) {
+      const msg = getApiError(err);
+      dispatch({ type: ACTIONS.SET_ERROR, payload: msg });
+      return { success: false, error: msg };
+    }
+  }, []);
+
   /* ------ Hydration — restore session (AUTH-003/004) ------ */
 
   useEffect(() => {
@@ -198,6 +225,8 @@ function AuthProvider({ children }) {
       return;
     }
 
+    // Mark hydration flag so the Axios interceptor skips logout during this call
+    window.__prmsHydrating = true;
     authApi
       .getMe()
       .then(({ data }) => {
@@ -212,6 +241,9 @@ function AuthProvider({ children }) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+      })
+      .finally(() => {
+        window.__prmsHydrating = false;
       });
   }, []);
 
@@ -227,6 +259,7 @@ function AuthProvider({ children }) {
     googleLogin,
     logout,
     updateProfile,
+    changePassword,
     clearError: () => dispatch({ type: ACTIONS.CLEAR_ERROR }),
   };
 
@@ -241,15 +274,5 @@ function useAuth() {
   return ctx;
 }
 
-/* ------ Helpers ------ */
-
-function roleToPath(role) {
-  if (!role) return '/login';
-  const lower = role.toLowerCase();
-  if (lower.includes('landlord')) return '/landlord';
-  if (lower.includes('tenant')) return '/tenant';
-  if (lower.includes('admin')) return '/admin';
-  return '/login';
-}
-
-export { AuthProvider, useAuth, AuthContext, roleToPath };
+// eslint-disable-next-line react-refresh/only-export-components
+export { AuthProvider, useAuth, AuthContext };

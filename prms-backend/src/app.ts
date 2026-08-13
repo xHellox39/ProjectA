@@ -5,8 +5,9 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { env } from './config';
 import { prisma } from './db';
+import path from 'path';
 import { requestLogger } from './middleware/logging';
-import { apiLimiter } from './middleware/rateLimit';
+import { responseCache } from './middleware/responseCache';
 import { errorHandler } from './middleware/errorHandler';
 import authRoutes from './modules/auth/routes_auth';
 import userRoutes from './modules/user/routes_user';
@@ -18,6 +19,10 @@ import maintenanceRoutes from './modules/maintenance/routes_maintenance';
 import communicationRoutes from './modules/communication/routes_communication';
 import adminRoutes from './modules/admin/routes_admin';
 import reportingRoutes from './modules/reporting/routes_reporting';
+import agentRoutes from './modules/agent/routes_agent';
+import categoryRoutes from './modules/category/routes_category';
+import themeRoutes from './modules/theme/routes_theme';
+import favoriteRoutes from './modules/favorite/routes_favorite';
 
 // Initialize Firebase if possible
 if (getApps().length === 0) {
@@ -37,7 +42,14 @@ const PORT = env.PORT;
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN }));
 app.use(express.json());
+app.use(responseCache);
 app.use(requestLogger);
+
+// Serve uploaded images statically with cross-origin CORP (frontend is on a different port)
+app.use('/images', (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+}, express.static(path.join(__dirname, '..', 'public', 'images')));
 
 app.get('/health', async (req, res) => {
   try {
@@ -61,7 +73,6 @@ router.post('/auth/verify', async (req, res) => {
   } catch (error) { res.status(401).json({ error: 'Invalid Firebase token' }); }
 });
 
-router.use(apiLimiter);
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/properties', propertyRoutes);
@@ -72,6 +83,12 @@ router.use('/maintenance', maintenanceRoutes);
 router.use('/communication', communicationRoutes);
 router.use('/admin', adminRoutes);
 router.use('/reports', reportingRoutes);
+router.use('/agents', agentRoutes);
+router.use('/categories', categoryRoutes);
+router.use('/themes', themeRoutes);
+router.use('/favorites', favoriteRoutes);
+import notificationRoutes from './modules/notification/routes_notification';
+router.use('/notifications', notificationRoutes);
 
 app.use(router);
 app.use(errorHandler);

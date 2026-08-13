@@ -8,7 +8,7 @@ windows
 rmdir /s /q node_modules
 del package-lock.json
 npm install
-npm rebuild better-sqlite3
+npm rebuild
 npx prisma generate
 npx prisma db push
 npm run dev
@@ -19,7 +19,7 @@ Linux
 rm -rf node_modules
 rm package-lock.json
 npm install
-npm rebuild better-sqlite3
+npm rebuild
 npx prisma generate
 npx prisma db push
 npm run dev
