@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import {
   CircleHelp,
   LogOut,
+  Search,
 } from 'lucide-react'
 import PageTransition from './PageTransition'
 import { useAuth } from '../contexts/AuthContext'
@@ -38,6 +39,7 @@ function AdminLayout() {
   const initials = user
     ? (user.full_name || user.name || 'AS').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : 'AS'
+  const displayName = user?.full_name || user?.name || '—'
 
   function safeNavigate(path) {
     if (location.pathname !== path) navigate(path)
@@ -101,11 +103,21 @@ function AdminLayout() {
             <p>{getTopbarTitle(activePage)}</p>
           </div>
 
+          <div className="admin-layout-search">
+            <Search size={22} />
+            <input type="text" placeholder="Search..." />
+          </div>
+
           <div className="admin-layout-top-actions">
             <NotificationDropdown />
 
-            <motion.div className="admin-layout-avatar" whileHover={{ scale: 1.08 }}>
-              {initials}
+            <motion.div className="admin-layout-profile" whileHover={{ scale: 1.02 }}>
+              <div>
+                <h3>{displayName}</h3>
+                <p>{role}</p>
+              </div>
+
+              <div className="admin-layout-avatar">{initials}</div>
             </motion.div>
           </div>
         </header>

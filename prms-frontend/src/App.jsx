@@ -84,15 +84,15 @@ function AppRoutes() {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="users" element={<AdminSimplePage label="User Management" />} />
+        <Route path="users" element={<AdminSimplePage type="users" />} />
         <Route path="properties" element={<Properties />} />
-        <Route path="bookings" element={<AdminSimplePage label="Booking Management" />} />
-        <Route path="finance" element={<AdminSimplePage label="Finance Console" />} />
-        <Route path="maintenance" element={<AdminSimplePage label="Maintenance Center" />} />
-        <Route path="messages" element={<AdminSimplePage label="Admin Messages" />} />
-        <Route path="reports" element={<AdminSimplePage label="Reports & Audit" />} />
+        <Route path="bookings" element={<AdminSimplePage type="bookings" />} />
+        <Route path="finance" element={<AdminSimplePage type="finance" />} />
+        <Route path="maintenance" element={<AdminSimplePage type="maintenance" />} />
+        <Route path="messages" element={<AdminSimplePage type="messages" />} />
+        <Route path="reports" element={<AdminSimplePage type="reports" />} />
         <Route path="settings" element={<Settings />} />
-        <Route path="help" element={<AdminSimplePage label="Admin Help Center" />} />
+        <Route path="help" element={<AdminSimplePage type="help" />} />
       </Route>
 
       {/*  Landlord routes (AUTH-006: role-protected)  */}
@@ -106,12 +106,12 @@ function AppRoutes() {
       >
         <Route index element={<LandlordDashboard />} />
         <Route path="properties" element={<Properties />} />
-        <Route path="bookings" element={<LandlordSimplePage label="My Bookings" />} />
-        <Route path="finance" element={<LandlordSimplePage label="Finance & Payments" />} />
-        <Route path="maintenance" element={<LandlordSimplePage label="Maintenance Requests" />} />
-        <Route path="messages" element={<LandlordSimplePage label="Messages" />} />
+        <Route path="bookings" element={<LandlordSimplePage type="bookings" />} />
+        <Route path="finance" element={<LandlordSimplePage type="finance" />} />
+        <Route path="maintenance" element={<LandlordSimplePage type="maintenance" />} />
+        <Route path="messages" element={<LandlordSimplePage type="messages" />} />
         <Route path="settings" element={<Settings />} />
-        <Route path="help" element={<LandlordSimplePage label="Help Center" />} />
+        <Route path="help" element={<LandlordSimplePage type="help" />} />
       </Route>
 
       {/*  Tenant routes (AUTH-006: role-protected)  */}
@@ -125,12 +125,12 @@ function AppRoutes() {
       >
         <Route index element={<TenantDashboard />} />
         <Route path="properties" element={<Properties />} />
-        <Route path="bookings" element={<TenantSimplePage label="My Bookings" />} />
-        <Route path="payments" element={<TenantSimplePage label="Payments" />} />
-        <Route path="maintenance" element={<TenantSimplePage label="Maintenance Requests" />} />
-        <Route path="messages" element={<TenantSimplePage label="Messages" />} />
+        <Route path="bookings" element={<TenantSimplePage type="bookings" />} />
+        <Route path="payments" element={<TenantSimplePage type="payments" />} />
+        <Route path="maintenance" element={<TenantSimplePage type="maintenance" />} />
+        <Route path="messages" element={<TenantSimplePage type="messages" />} />
         <Route path="settings" element={<Settings />} />
-        <Route path="help" element={<TenantSimplePage label="Help Center" />} />
+        <Route path="help" element={<TenantSimplePage type="help" />} />
       </Route>
 
       {/*  Fallback  */}

@@ -11,6 +11,20 @@ import { buildNavItems, resolveActivePage } from './NavigationConfig'
 import NotificationDropdown from './NotificationDropdown'
 import './LandlordLayout.css'
 
+function getTopbarTitle(activePage) {
+  const titles = {
+    dashboard: 'Landlord Dashboard',
+    properties: 'Properties',
+    bookings: 'Booking Requests',
+    finance: 'Finance',
+    maintenance: 'Maintenance',
+    messages: 'Messages',
+    settings: 'Settings',
+    help: 'Help Center',
+  }
+  return titles[activePage] || 'Landlord Dashboard'
+}
+
 function LandlordLayout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -84,7 +98,7 @@ function LandlordLayout() {
           <div className="landlord-layout-brand" onClick={() => safeNavigate('/landlord')}>
             <h2>PRMS</h2>
             <span></span>
-            <p>{role} Portal</p>
+            <p>{getTopbarTitle(activePage)}</p>
           </div>
 
           <div className="landlord-layout-search">

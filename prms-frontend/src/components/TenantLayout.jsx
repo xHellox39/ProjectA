@@ -11,6 +11,20 @@ import { buildNavItems, resolveActivePage } from './NavigationConfig'
 import NotificationDropdown from './NotificationDropdown'
 import './TenantLayout.css'
 
+function getTopbarTitle(activePage) {
+  const titles = {
+    dashboard: 'Tenant Dashboard',
+    properties: 'Properties',
+    bookings: 'My Bookings',
+    payments: 'Payments',
+    maintenance: 'Maintenance Requests',
+    messages: 'Messages',
+    settings: 'Settings',
+    help: 'Help Center',
+  }
+  return titles[activePage] || 'Tenant Dashboard'
+}
+
 function TenantLayout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -59,7 +73,7 @@ function TenantLayout() {
         <motion.button
           type="button"
           className={`tenant-layout-side-btn ${activePage === 'help' ? 'active' : ''}`}
-          onClick={() => safeNavigate(`${location.pathname.split('/')[0]}/help`)}
+          onClick={() => safeNavigate('/tenant/help')}
           title="Help"
           whileTap={{ scale: 0.96 }}
         >
@@ -84,7 +98,7 @@ function TenantLayout() {
           <div className="tenant-layout-brand" onClick={() => safeNavigate('/tenant')}>
             <h2>PRMS</h2>
             <span></span>
-            <p>{role} Portal</p>
+            <p>{getTopbarTitle(activePage)}</p>
           </div>
 
           <div className="tenant-layout-search">
