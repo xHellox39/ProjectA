@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSettings } from '../contexts/SettingsContext'
+import useBranding from '../hooks/useBranding'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import {
   ArrowRight,
@@ -19,8 +20,14 @@ import './GuestHome.css';
 function GuestHome() {
   const navigate = useNavigate()
   const { settings, loadSettings } = useSettings()
+  const branding = useBranding()
 
-  /* Fallback hero content from settings */
+  /* Branding from customizer — overrides settings */
+  const brandName = branding.name || settings?.branding_site_name || 'PRMS'
+  const brandLogo = branding.logoUrl || settings?.branding_logo_url
+  const headerBg = branding.colors?.light_header_bg || settings?.header_background_color || '#ffffff'
+  const footerBg = branding.colors?.light_footer_bg || settings?.footer_background_color || '#0f172a'
+  const bodyBg = branding.colors?.light_body_bg
   const heroTitle = settings?.homepage_hero_title || 'Find Your Perfect Space in Malaysia\'s Most Trusted Ecosystem.'
   const heroSubtitle = settings?.homepage_hero_subtitle || 'Experience seamless property discovery with PRMS. Browse verified homes, compare listings, and connect with trusted landlords.'
   const heroButtonText = settings?.homepage_hero_button_text || 'Browse Properties'
@@ -43,10 +50,6 @@ function GuestHome() {
 
   /* Hero text alignment */
   const heroAlignment = settings?.homepage_hero_text_alignment || 'left'
-
-  /* Header / Footer background colors */
-  const headerBg = settings?.header_background_color || '#ffffff'
-  const footerBg = settings?.footer_background_color || '#0f172a'
 
   /* Footer copyright */
   const footerCopyright = settings?.footer_copyright_text || '© 2024 PRMS Malaysia. All rights reserved.'
@@ -115,13 +118,13 @@ function GuestHome() {
   }
 
   return (
-    <main className="guest-page">
+    <main className="guest-page" style={bodyBg ? { backgroundColor: bodyBg } : {}}>
       <header className="guest-navbar" data-customize-id="global.header" style={{ backgroundColor: headerBg }}>
         <Link to="/" className="guest-logo">
-          {settings?.branding_logo_url ? (
-            <img src={getImageUrl(settings.branding_logo_url)} alt="Logo" className="guest-logo-img" />
+          {brandLogo ? (
+            <img src={brandLogo} alt="Logo" className="guest-logo-img" />
           ) : null}
-          <span>{settings?.branding_site_name || 'PRMS'}</span>
+          <span>{brandName}</span>
         </Link>
 
         <nav>
@@ -437,7 +440,7 @@ function GuestHome() {
       )}
 
       <footer className="guest-footer" data-customize-id="global.footer" id="help" style={{ backgroundColor: footerBg }}>
-        <h3>PRMS Malaysia</h3>
+        <h3>{brandName}</h3>
 
         <nav>
           <a href="#">Terms of Service</a>
