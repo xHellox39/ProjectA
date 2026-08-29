@@ -199,9 +199,10 @@ export default function WebsiteCustomizer() {
   /* load */
   const loadConfig = useCallback(async () => {
     try {
-      const data = await customizerApi.getConfig();
-      setConfig((prev) => ({ ...DEFAULTS, ...data }));
-      origRef.current = { ...DEFAULTS, ...data };
+      const res = await customizerApi.getConfig();
+      const body = res?.data ?? res;
+      setConfig((prev) => ({ ...DEFAULTS, ...body }));
+      origRef.current = { ...DEFAULTS, ...body };
       setDirty(false);
     } catch (err) {
       setStatus({ type: 'error', msg: `Load failed: ${err.message}` });
@@ -231,7 +232,7 @@ export default function WebsiteCustomizer() {
       const fd = new FormData();
       fd.append('logo', file);
       const data = await customizerApi.uploadLogo(fd);
-      setConfig((p) => ({ ...p, logo_url: data.logo_url }));
+      setConfig((p) => ({ ...p, logo_url: data?.data?.logo_url ?? data.logo_url }));
       setDirty(true);
       setStatus({ type: 'success', msg: 'Logo uploaded successfully.' });
     } catch (err) {
