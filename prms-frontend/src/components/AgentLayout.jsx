@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import PageTransition from './PageTransition'
 import { useAuth } from '../contexts/AuthContext'
+import useBranding from '../hooks/useBranding'
 import { buildNavItems, resolveActivePage } from './NavigationConfig'
 import NotificationDropdown from './NotificationDropdown'
 import ThemeSwitcher from './ThemeSwitcher'
@@ -30,6 +31,7 @@ function AgentLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const { name, logoUrl } = useBranding()
 
   const navItems = buildNavItems(user?.role || 'Agent')
   const activePage = resolveActivePage(location.pathname, user?.role || 'Agent')
@@ -100,8 +102,8 @@ function AgentLayout() {
       <section className="agent-layout-main" data-customize-id="global.content">
         <header className="agent-layout-topbar" data-customize-id="global.header">
           <div className="agent-layout-brand" onClick={() => safeNavigate('/agent')} data-customize-id="global.brand">
-            <h2 data-customize-id="global.brand.title">PRMS</h2>
-            <span></span>
+            <h2 data-customize-id="global.brand.title">{name}</h2>
+            <span>{logoUrl ? <img src={logoUrl} alt="logo" style={{height:'32px',width:'32px',borderRadius:'6px',objectFit:'cover'}} /> : null}</span>
             <p data-customize-id="global.brand.subtitle">{getTopbarTitle(activePage)}</p>
           </div>
 
