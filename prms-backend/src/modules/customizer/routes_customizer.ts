@@ -16,10 +16,13 @@ const logoUpload = multer({
   },
 });
 
-router.use(authenticate);
-router.get('/config', adminOnly, ctrl.getConfig);
+// GET /config is public — guests need it for branding
+router.get('/config', ctrl.getConfig);
 router.get('/preview', ctrl.getPreview);
 router.get('/health', (_req, res) => res.json({ success: true, service: 'customizer', status: 'ok' }));
+
+// Protected routes
+router.use(authenticate);
 router.put('/config', adminOnly, ctrl.updateConfig);
 router.post('/upload-logo', adminOnly, logoUpload.single('logo'), ctrl.uploadLogo);
 router.delete('/logo', adminOnly, ctrl.removeLogo);
