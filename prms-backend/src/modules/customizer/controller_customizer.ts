@@ -32,8 +32,8 @@ export class CustomizerController {
       }
 
       const colorFields = [
-        'light_header_bg','light_body_bg','light_footer_bg','light_accent_color',
-        'dark_header_bg','dark_body_bg','dark_footer_bg','dark_accent_color',
+        'light_header_bg','light_sidebar_bg','light_body_bg','light_footer_bg','light_accent_color','light_card_bg',
+        'dark_header_bg','dark_sidebar_bg','dark_body_bg','dark_footer_bg','dark_accent_color','dark_card_bg',
       ];
       for (const field of colorFields) {
         if (field in req.body) {

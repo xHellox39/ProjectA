@@ -14,13 +14,17 @@ export class CustomizerService {
         data: {
           company_name: 'PRMS',
           light_header_bg: '#ffffff',
+          light_sidebar_bg: '#ffffff',
           light_body_bg: '#f9fafb',
           light_footer_bg: '#111827',
           light_accent_color: '#2563eb',
+          light_card_bg: '#ffffff',
           dark_header_bg: '#1f2937',
+          dark_sidebar_bg: '#1f2937',
           dark_body_bg: '#111827',
           dark_footer_bg: '#030712',
           dark_accent_color: '#60a5fa',
+          dark_card_bg: '#334155',
           active_theme: 'light',
         },
       });

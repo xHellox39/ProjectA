@@ -21,11 +21,15 @@ import { customizerApi } from '../api/customizer'
  * A MutationObserver re-paints when the user toggles data-theme.
  */
 const PAINT_MAP = [
-  ['light_header_bg',  ['--header-background-color', '--card-bg']],
+  ['light_header_bg',  ['--header-background-color']],
+  ['light_sidebar_bg', ['--sidebar-bg']],
+  ['light_card_bg',    ['--card-bg']],
   ['light_body_bg',    ['--background-color', '--page-bg']],
   ['light_accent_color',['--primary-color', '--accent-color']],
   ['light_footer_bg',  ['--footer-background-color']],
-  ['dark_header_bg',   ['--header-background-color', '--card-bg']],
+  ['dark_header_bg',   ['--header-background-color']],
+  ['dark_sidebar_bg',  ['--sidebar-bg']],
+  ['dark_card_bg',     ['--card-bg']],
   ['dark_body_bg',     ['--background-color', '--page-bg']],
   ['dark_accent_color', ['--primary-color', '--accent-color']],
   ['dark_footer_bg',   ['--footer-background-color']],

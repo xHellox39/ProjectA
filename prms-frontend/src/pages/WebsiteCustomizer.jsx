@@ -7,13 +7,17 @@ const DEFAULTS = {
   company_name: 'PRMS',
   logo_url: '',
   light_header_bg: '#ffffff',
+  light_sidebar_bg: '#ffffff',
   light_body_bg: '#f9fafb',
   light_footer_bg: '#111827',
   light_accent_color: '#2563eb',
+  light_card_bg: '#ffffff',
   dark_header_bg: '#1f2937',
+  dark_sidebar_bg: '#1f2937',
   dark_body_bg: '#111827',
   dark_footer_bg: '#030712',
   dark_accent_color: '#60a5fa',
+  dark_card_bg: '#334155',
 };
 
 /* ── ColorInput ── */
@@ -70,7 +74,9 @@ function BrandingSection({ company_name, logo_url, onCompanyChange, onLogoUpload
 function ColorsSection({ prefix, colors, onChange, disabled }) {
   const fields = [
     ['header_bg', 'Header Background'],
+    ['sidebar_bg', 'Sidebar Background'],
     ['body_bg', 'Body Background'],
+    ['card_bg', 'Card / Element Background'],
     ['footer_bg', 'Footer Background'],
     ['accent_color', 'Accent / Attention Color'],
   ];
@@ -128,8 +134,29 @@ function PreviewPanel({ config, theme }) {
               {config.company_name || 'PRMS'}
             </span>
           </div>
-          {/* Body */}
-          <div style={{ flex: 1, padding: '32px 24px', textAlign: 'center' }}>
+          {/* Sidebar + Body */}
+          <div style={{ flex: 1, display: 'flex' }}>
+            {/* Sidebar Preview */}
+            <div style={{
+              width: '60px',
+              backgroundColor: active.sidebar_bg,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              paddingTop: '16px',
+              gap: '8px',
+              borderRight: `1px solid ${theme === 'dark' ? '#334155' : '#e2e8f0'}`,
+            }}>
+              {['🏠','🏢','📋','👤'].map((icon, i) => (
+                <div key={i} style={{
+                  width: 32, height: 32, borderRadius: 6,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, opacity: 0.7,
+                }}>{icon}</div>
+              ))}
+            </div>
+            {/* Body */}
+            <div style={{ flex: 1, padding: '32px 24px', textAlign: 'center' }}>
             <h2 style={{ color: active.accent_color, marginBottom: 8, fontSize: '28px' }}>
               {config.company_name || 'PRMS'}
             </h2>
@@ -158,6 +185,7 @@ function PreviewPanel({ config, theme }) {
                 Contact Us
               </span>
             </div>
+          </div>
           </div>
           {/* Footer */}
           <div style={{
@@ -264,7 +292,8 @@ export default function WebsiteCustomizer() {
       await customizerApi.updateConfig(config);
       origRef.current = { ...config };
       setDirty(false);
-      setStatus({ type: 'success', msg: 'Changes saved successfully.' });
+      setStatus({ type: 'success', msg: 'Changes saved. Refreshing...' });
+      setTimeout(() => window.location.reload(), 400);
     } catch (err) {
       setStatus({ type: 'error', msg: err.message });
     } finally {
