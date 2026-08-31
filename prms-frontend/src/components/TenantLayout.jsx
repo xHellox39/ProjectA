@@ -81,8 +81,8 @@ function TenantLayout() {
       <section className="tenant-layout-main" data-customize-id="global.content">
         <header className="tenant-layout-topbar" data-customize-id="global.header">
           <div className="tenant-layout-brand" onClick={() => safeNavigate('/tenant')} data-customize-id="global.brand">
-            <h2 data-customize-id="global.brand.title">{name}</h2>
             <span>{logoUrl ? <img src={logoUrl} alt="logo" style={{height:'32px',width:'32px',borderRadius:'6px',objectFit:'cover'}} /> : null}</span>
+            <h2 data-customize-id="global.brand.title">{name}</h2>
             <p data-customize-id="global.brand.subtitle">{role} Portal</p>
           </div>
 

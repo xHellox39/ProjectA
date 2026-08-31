@@ -106,8 +106,8 @@ function AdminLayout() {
       <section className="admin-layout-main">
         <header className="admin-layout-topbar" data-customize-id="global.header">
           <div className="admin-layout-brand" onClick={() => safeNavigate('/admin')}>
-            <h2>{name}</h2>
             <span>{logoUrl ? <img src={logoUrl} alt="logo" style={{height:'32px',width:'32px',borderRadius:'6px',objectFit:'cover'}} /> : null}</span>
+            <h2>{name}</h2>
             <p>{getTopbarTitle(activePage)}</p>
           </div>
 

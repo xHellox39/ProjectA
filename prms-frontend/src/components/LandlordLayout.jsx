@@ -81,8 +81,8 @@ function LandlordLayout() {
       <section className="landlord-layout-main" data-customize-id="global.content">
         <header className="landlord-layout-topbar" data-customize-id="global.header">
           <div className="landlord-layout-brand" onClick={() => safeNavigate('/landlord')} data-customize-id="global.brand">
-            <h2 data-customize-id="global.brand.title">{name}</h2>
             <span>{logoUrl ? <img src={logoUrl} alt="logo" style={{height:'32px',width:'32px',borderRadius:'6px',objectFit:'cover'}} /> : null}</span>
+            <h2 data-customize-id="global.brand.title">{name}</h2>
             <p data-customize-id="global.brand.subtitle">{role} Portal</p>
           </div>
 
