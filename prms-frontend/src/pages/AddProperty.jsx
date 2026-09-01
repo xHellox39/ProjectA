@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   Image as ImageIcon,
 } from 'lucide-react';
+import { getApiBaseUrl } from '../config/apiBaseUrl';
 import './AddProperty.css';
 
 const PROPERTY_TYPES = [
@@ -131,7 +132,6 @@ function AddProperty() {
     }
     setSubmitting(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin || 'http://localhost:3500';
       const token = localStorage.getItem('accessToken');
       const endpoint = id ? `/properties/${id}` : '/properties';
 
@@ -150,7 +150,8 @@ function AddProperty() {
         amenities: formData.amenities?.map?.(a => ({ name: a })) || [],
       };
 
-      const res = await fetch(`${apiBaseUrl}${endpoint}`, {
+      const base = getApiBaseUrl();
+      const res = await fetch(`${base}${endpoint}`, {
         method: id ? 'PUT' : 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -168,7 +169,7 @@ function AddProperty() {
           for (const img of images) {
             const imgFD = new FormData();
             imgFD.append('image', img);
-            await fetch(`${apiBaseUrl}/properties/${createdId}/images`, {
+            await fetch(`${base}/properties/${createdId}/images`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}` },
               body: imgFD,

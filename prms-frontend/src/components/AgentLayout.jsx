@@ -10,6 +10,7 @@ import useBranding from '../hooks/useBranding'
 import { buildNavItems, resolveActivePage } from './NavigationConfig'
 import NotificationDropdown from './NotificationDropdown'
 import ThemeSwitcher from './ThemeSwitcher'
+import { getFullUrl } from '../config/apiBaseUrl'
 import './AgentLayout.css'
 
 function getTopbarTitle(activePage) {
@@ -40,10 +41,7 @@ function AgentLayout() {
     ? (user.full_name || user.name || 'AG').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : 'AG'
 
-  const API = import.meta.env.VITE_API_BASE_URL || window.location.origin || 'http://localhost:3500';
-  const profileImgUrl = user?.profile_img_url
-    ? (user.profile_img_url.startsWith('http') ? user.profile_img_url : (API + user.profile_img_url))
-    : null;
+  const profileImgUrl = user?.profile_img_url ? getFullUrl(user.profile_img_url) : null;
 
   function safeNavigate(path) {
     if (location.pathname !== path) navigate(path)
