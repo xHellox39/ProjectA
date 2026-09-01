@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { customizerApi } from '../api/customizer'
+import { getFullUrl } from '../config/apiBaseUrl'
 
 /**
  * Maps customizer DB fields to the CSS custom properties the layouts consume.
@@ -68,13 +69,9 @@ function useBranding() {
         const data = r?.data ?? r
         if (!data) return
 
-        const API = import.meta.env.VITE_API_BASE_URL || window.location.origin || 'http://localhost:3500'
-
         if (data.company_name) setName(data.company_name)
         if (data.logo_url) {
-          setLogoUrl(
-            data.logo_url.startsWith('http') ? data.logo_url : `${API}${data.logo_url}`
-          )
+          setLogoUrl(getFullUrl(data.logo_url))
         }
 
         /* ── Store full customizer payload ── */
