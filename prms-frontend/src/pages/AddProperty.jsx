@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { getApiBaseUrl } from '../config/apiBaseUrl';
+import { getPropertyRoute } from '../config/routes';
 import './AddProperty.css';
 
 const PROPERTY_TYPES = [
@@ -177,7 +178,7 @@ function AddProperty() {
           }
         }
         setTimeout(() => {
-          navigate('/dashboard/properties');
+          navigate(getPropertiesRoute(user?.role));
         }, 800);
       } else {
         setErrors({
@@ -270,7 +271,7 @@ function AddProperty() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <button
-                onClick={() => navigate('/dashboard/properties')}
+                onClick={() => navigate(getPropertyRoute(user?.role))}
                 style={{
                   background: `${textColor}10`,
                   border: 'none',

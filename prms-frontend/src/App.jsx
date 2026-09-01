@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { RegistrationProvider } from './contexts/RegistrationContext';
 import { SettingsProvider } from './contexts/SettingsContext';
@@ -13,7 +13,6 @@ import PublicPageTransition from './components/PublicPageTransition';
 
 /*  Public pages  */
 import GuestHome from './pages/GuestHome';
-import GuestProperties from './pages/GuestProperties';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import RoleSelection from './pages/RoleSelection';
@@ -103,8 +102,8 @@ function AppRoutes() {
         }
       />
 
-      {/*  Issue #5: Public guest-properties route  */}
-      <Route path="/properties" element={<GuestProperties />} />
+      {/*  Public guest-properties route removed — signed-in users go to their role's property list  */}
+      <Route path="/properties" element={<Navigate to="/login" replace />} />
 
       {/*  Issue #12: PropertyDetail page (lazy-loaded)  */}
       <Route

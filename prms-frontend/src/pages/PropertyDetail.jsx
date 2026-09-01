@@ -227,7 +227,7 @@ function BookingCard({ property, onBookClick }) {
             <span>{formatRM(cleaningFee)}</span>
           </div>
           <div className="breakdown-row">
-            <span>EstateSync service fee</span>
+            <span>Platform service fee</span>
             <span>{formatRM(serviceFee)}</span>
           </div>
           <div className="breakdown-total">
@@ -381,7 +381,7 @@ function PropertyDetail() {
       {/* ── Top Bar (EstateSync-style, only on public routes) ── */}
       {!isInRoleLayout && (
         <header className="pd-topbar" data-customize-id="global.header">
-          <Link to="/" className="pd-logo" data-customize-id="global.brand">EstateSync</Link>
+          <Link to="/" className="pd-logo" data-customize-id="global.brand">PRMS</Link>
           <nav className="pd-topnav" data-customize-id="global.tabs">
             <Link to="/properties" className="active">Properties</Link>
             <Link to="/dashboard">Dashboard</Link>
@@ -682,7 +682,7 @@ function PropertyDetail() {
         <footer className="pd-footer">
           <div className="pd-footer-inner">
             <div className="pd-footer-col">
-              <h4>EstateSync</h4>
+              <h4>PRMS</h4>
               <p>The world's most trusted platform for luxury property management and short-term rentals.</p>
             </div>
             <div className="pd-footer-col">
@@ -707,7 +707,7 @@ function PropertyDetail() {
             </div>
           </div>
           <div className="pd-footer-bottom">
-            <span>© 2024 EstateSync Inc. All rights reserved.</span>
+            <span>© 2024 PRMS Inc. All rights reserved.</span>
             <div className="pd-footer-links">
               <a href="#">Privacy</a>
               <a href="#">Terms</a>
