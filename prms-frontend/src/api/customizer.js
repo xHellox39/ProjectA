@@ -1,4 +1,5 @@
 import { apiClient } from './ApiClient';
+import { getApiBaseUrl } from '../config/apiBaseUrl';
 
 export const customizerApi = {
   async getConfig() {
@@ -20,9 +21,7 @@ export const customizerApi = {
   },
 
   getPreviewUrl(theme = 'light') {
-    const base = typeof window !== 'undefined'
-      ? (window.location.origin === 'http://localhost:5173' ? 'http://localhost:3500' : window.location.origin)
-      : 'http://localhost:3500';
+    const base = getApiBaseUrl();
     return `${base}/customizer/preview?theme=${theme}`;
   },
 };
