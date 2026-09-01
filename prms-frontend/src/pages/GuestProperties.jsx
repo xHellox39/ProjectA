@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { getImageUrl } from '../config/imageHelper';
 import { propertyApi, searchApi } from '../api';
+import useBranding from '../hooks/useBranding';
 import './GuestProperties.css';
 
 const PRICE_RANGES = [
@@ -36,11 +37,15 @@ const PROPERTY_TYPES = ['apartment', 'condo', 'serviced residence', 'studio', 'l
 
 function GuestProperties() {
   const navigate = useNavigate();
+  const branding = useBranding();
+  const headerBg = branding.colors?.light_header_bg || '#ffffff';
+  const footerBg = branding.colors?.light_footer_bg || '#0f172a';
+  const brandName = branding.name || 'PRMS';
+  const brandLogo = branding.logoUrl;
+
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  /* Issue #14: Filter state */
   const [searchQuery, setSearchQuery] = useState('');
   const [priceFilter, setPriceFilter] = useState(null);
   const [typeFilter, setTypeFilter] = useState(null);
@@ -146,9 +151,10 @@ function GuestProperties() {
 
   return (
     <main className="guest-properties-page" data-customize-id="global.page">
-      <header className="guest-properties-navbar" data-customize-id="global.header">
+      <header className="guest-properties-navbar" data-customize-id="global.header" style={{ backgroundColor: headerBg }}>
         <Link to="/" className="guest-properties-logo" data-customize-id="global.brand">
-          PRMS
+          {brandLogo && <img src={brandLogo} alt="logo" className="guest-properties-logo-img" />}
+          <span>{brandName}</span>
         </Link>
 
         <nav className="guest-properties-tabs" data-customize-id="global.tabs">
@@ -430,6 +436,15 @@ function GuestProperties() {
           )}
         </section>
       )}
+
+      <footer className="guest-footer" data-customize-id="global.footer" style={{ backgroundColor: footerBg }}>
+        <h3>{brandName}</h3>
+        <nav>
+          <a href="#">Terms of Service</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Contact Us</a>
+        </nav>
+      </footer>
     </main>
   );
 }

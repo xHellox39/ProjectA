@@ -2,7 +2,7 @@
 
 .guest-page {
   min-height: 100vh;
-  background: var(--page-bg);
+  background: var(--background-color); /* painted by useBranding */
   color: var(--text-primary);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
@@ -12,7 +12,7 @@
   width: 100%;
   height: 78px;
   padding: 0 var(--spacing-xl);
-  background: var(--navbar-bg-glass);
+  background: var(--header-background-color); /* painted by useBranding */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -646,7 +646,7 @@
 .guest-footer {
   min-height: 76px;
   padding: var(--spacing-md) var(--spacing-xl);
-  background: var(--primary-container);
+  background: var(--footer-background-color); /* painted by useBranding */
   color: var(--on-primary);
   display: flex;
   align-items: center;

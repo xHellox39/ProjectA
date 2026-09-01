@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import PageTransition from './PageTransition'
 import { useAuth } from '../contexts/AuthContext'
+import useBranding from '../hooks/useBranding'
 import { buildNavItems, resolveActivePage } from './NavigationConfig'
 import NotificationDropdown from './NotificationDropdown'
 import ThemeSwitcher from './ThemeSwitcher'
@@ -33,6 +34,7 @@ function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const { name, logoUrl } = useBranding()
 
   const role = user?.role || 'Admin'
   const navItems = buildNavItems(role)
@@ -104,8 +106,8 @@ function AdminLayout() {
       <section className="admin-layout-main">
         <header className="admin-layout-topbar" data-customize-id="global.header">
           <div className="admin-layout-brand" onClick={() => safeNavigate('/admin')}>
-            <h2>PRMS</h2>
-            <span></span>
+            <span>{logoUrl ? <img src={logoUrl} alt="logo" style={{height:'32px',width:'32px',borderRadius:'6px',objectFit:'cover'}} /> : null}</span>
+            <h2>{name}</h2>
             <p>{getTopbarTitle(activePage)}</p>
           </div>
 
