@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { customizerApi } from '../api/customizer';
-import { getApiBaseUrl } from '../config/apiBaseUrl';
+import { getFullUrl } from '../config/apiBaseUrl';
 import './WebsiteCustomizer.css';
 
 /* ── defaults ── */
@@ -49,7 +49,7 @@ function BrandingSection({ company_name, logo_url, onCompanyChange, onLogoUpload
         <label>Logo</label>
         <div className="logo-area">
           {logo_url ? (
-            <img className="logo-preview-img" src={`${getApiBaseUrl()}/${logo_url}`} alt="Logo" />
+            <img className="logo-preview-img" src={getFullUrl(logo_url)} alt="Logo" />
           ) : (
             <div className="logo-placeholder">No logo</div>
           )}
@@ -99,7 +99,7 @@ function PreviewPanel({ config, theme }) {
   const raw = pick(config, useDark ? 'dark_' : 'light_');
   const active = { ...pick(DEFAULTS, useDark ? 'dark_' : 'light_'), ...raw };
 
-  const logoSrc = config.logo_url ? `${getApiBaseUrl()}/${config.logo_url}` : null;
+  const logoSrc = config.logo_url ? getFullUrl(config.logo_url) : null;
 
   return (
     <div className="preview-area">
