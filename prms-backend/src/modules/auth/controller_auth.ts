@@ -102,6 +102,7 @@ export class AuthController {
         phone: user.phone,
         profile_img_url: user.profile_img_url,
         firebase_uid: user.firebase_uid,
+        hasPassword: user.hasPassword,
         role: user.UserRole[0]?.role.name || 'Tenant',
       }));
     } catch (error: any) {
@@ -142,6 +143,21 @@ export class AuthController {
       res.json(successResponse(null, 'Password changed successfully'));
     } catch (error: any) {
       HELPERS(req).log({ userId: req.user?.id, username: req.user?.email, action: 'PASSWORD_CHANGE', entity: 'User', description: `Password change failed: ${error.message}`, status: 'Failed', level: 'error', errorMessage: error.message });
+      res.status(400).json({ success: false, error: { message: error.message } });
+    }
+  };
+
+  setPassword = async (req: AuthRequest, res: Response) => {
+    try {
+      const { newPassword } = req.body;
+      if (!newPassword) {
+        return res.status(400).json({ success: false, error: { message: 'New password required' } });
+      }
+      await authService.setPassword(req.user!.id, newPassword);
+      HELPERS(req).log({ userId: req.user!.id, username: req.user!.email, userRole: req.user!.role, action: 'PASSWORD_SET', entity: 'User', entityId: req.user!.id, description: 'Password set successfully', status: 'Success', level: 'info' });
+      res.json(successResponse(null, 'Password set successfully'));
+    } catch (error: any) {
+      HELPERS(req).log({ userId: req.user?.id, username: req.user?.email, action: 'PASSWORD_SET', entity: 'User', description: `Password set failed: ${error.message}`, status: 'Failed', level: 'error', errorMessage: error.message });
       res.status(400).json({ success: false, error: { message: error.message } });
     }
   };

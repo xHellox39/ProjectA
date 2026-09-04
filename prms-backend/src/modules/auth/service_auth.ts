@@ -66,14 +66,20 @@ export async function verifyRefreshToken(userId: string, refreshToken: string) {
 }
 
 export async function getCurrentUser(userId: string) {
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true, email: true, full_name: true, phone: true,
       profile_img_url: true, firebase_uid: true, is_active: true, created_at: true,
+      passwordHash: true,
       UserRole: { include: { role: true } },
     },
   });
+  // Expose a boolean so the frontend knows whether a password is set
+  return {
+    ...user,
+    hasPassword: !!user?.passwordHash,
+  };
 }
 
 export async function updateUserProfile(
@@ -115,6 +121,21 @@ export async function changePassword(
 
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) throw new Error('Current password is incorrect');
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  return prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: newHash },
+  });
+}
+
+export async function setPassword(
+  userId: string,
+  newPassword: string
+) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error('User not found');
+  if (user.passwordHash) throw new Error('Already has a password. Use change password instead.');
 
   const newHash = await bcrypt.hash(newPassword, 10);
   return prisma.user.update({

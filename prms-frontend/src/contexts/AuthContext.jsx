@@ -59,6 +59,7 @@ function AuthProvider({ children }) {
       phone: user.phone,
       profile_img_url: user.profile_img_url,
       firebase_uid: user.firebase_uid,
+      hasPassword: user.hasPassword,
       role: user.role || 'Tenant',
     };
   }
@@ -217,6 +218,22 @@ function AuthProvider({ children }) {
     }
   }, []);
 
+  /* ------ Set password (Firebase users) ------ */
+
+  const setPassword = useCallback(async ({ newPassword }) => {
+    try {
+      await authApi.setPassword({ newPassword });
+      // Update local user to reflect password is now set
+      const updated = { ...state.user, hasPassword: true };
+      dispatch({ type: ACTIONS.SET_USER, payload: updated });
+      return { success: true };
+    } catch (err) {
+      const msg = getApiError(err);
+      dispatch({ type: ACTIONS.SET_ERROR, payload: msg });
+      return { success: false, error: msg };
+    }
+  }, [state.user]);
+
   /* ------ Upload profile image ------ */
 
   const uploadProfileImage = useCallback(async (file) => {
@@ -282,6 +299,7 @@ function AuthProvider({ children }) {
     logout,
     updateProfile,
     changePassword,
+    setPassword,
     uploadProfileImage,
     clearError,
   };
