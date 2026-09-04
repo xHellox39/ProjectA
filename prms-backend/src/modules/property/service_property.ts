@@ -8,12 +8,126 @@ export function normalizeDate(val: any): Date | undefined {
   return isNaN(d.getTime()) ? undefined : d;
 }
 
-export async function getAllProperties(page = 1, limit = 10) {
-  const [properties, total] = await Promise.all([
-    prisma.property.findMany({ skip: (page - 1) * limit, take: limit, orderBy: { id: 'desc' }, include: { owner: { select: { id: true, full_name: true, email: true } }, amenities: true, images: true, category: true } }),
-    prisma.property.count(),
-  ]);
-  return { properties, total };
+export async function getAllProperties(
+    page = 1,
+    limit = 10,
+    filters: {
+        search?: string; type?: string; status?: string; city?: string; state?: string; minRent?: number; maxRent?: number; availableFrom?: Date; availableTo?: Date;
+    } = {}
+) {
+    const { search, type, status, city, state, minRent, maxRent, availableFrom, availableTo,
+    } = filters;
+
+    const where: any = {};
+
+    // Search across the useful property fields
+    if (search?.trim()) {
+        const searchTerm = search.trim();
+
+        where.OR = [
+            {
+                title: {
+                    contains: searchTerm,
+                },
+            },
+            {
+                address: {
+                    contains: searchTerm,
+                },
+            },
+            {
+                city: {
+                    contains: searchTerm,
+                },
+            },
+            {
+                state: {
+                    contains: searchTerm,
+                },
+            },
+            {
+                property_type: {
+                    contains: searchTerm,
+                },
+            },
+        ];
+    }
+
+    // Exact property type
+    if (type?.trim()) {
+        where.property_type = type.trim();
+    }
+
+    // Property status
+    if (status?.trim()) {
+        where.status = status.trim().toUpperCase();
+    }
+
+    // Location
+    if (city?.trim()) {
+        where.city = {
+            contains: city.trim(),
+        };
+    }
+
+    if (state?.trim()) {
+        where.state = {
+            contains: state.trim(),
+        };
+    }
+
+    // Rent range
+    if (minRent !== undefined || maxRent !== undefined) {
+        where.rent = {};
+
+        if (minRent !== undefined) {
+            where.rent.gte = minRent;
+        }
+
+        if (maxRent !== undefined) {
+            where.rent.lte = maxRent;
+        }
+    }
+
+    // Availability range
+    if (availableFrom !== undefined) {
+        where.availableFrom = {
+            gte: availableFrom,
+        };
+    }
+
+    if (availableTo !== undefined) {
+        where.availableTo = {
+            lte: availableTo,
+        };
+    }
+
+    const [properties, total] = await Promise.all([
+        prisma.property.findMany({
+            where,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: { id: 'desc' },
+            include: {
+                owner: {
+                    select: {
+                        id: true,
+                        full_name: true,
+                        email: true,
+                    },
+                },
+                amenities: true,
+                images: true,
+                category: true,
+            },
+        }),
+
+        prisma.property.count({
+            where,
+        }),
+    ]);
+
+    return { properties, total };
 }
 
 export async function getPropertyById(id: string) {

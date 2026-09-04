@@ -19,15 +19,88 @@ const HELPERS = (req: Request) => {
 };
 
 export class PropertyController {
-  list = async (req: Request, res: Response) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
-      const { properties, total } = await propertyService.getAllProperties(page, limit);
-      HELPERS(req).log({ action: 'VIEW_PROPERTIES', entity: 'Property', description: `Listed properties (page ${page})` });
-      res.json(paginatedResponse(properties, page, limit, total));
-    } catch (error: any) { HELPERS(req).log({ action: 'VIEW_PROPERTIES', entity: 'Property', status: 'Failed', level: 'error', errorMessage: error.message }); res.status(500).json({ success: false, error: { message: error.message } }); }
-  };
+    list = async (req: Request, res: Response) => {
+        try {
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 10;
+
+            const search =
+                typeof req.query.search === 'string'
+                    ? req.query.search.trim()
+                    : undefined;
+
+            const type =
+                typeof req.query.type === 'string'
+                    ? req.query.type.trim()
+                    : undefined;
+
+            const status =
+                typeof req.query.status === 'string'
+                    ? req.query.status.trim()
+                    : undefined;
+
+            const city =
+                typeof req.query.city === 'string'
+                    ? req.query.city.trim()
+                    : undefined;
+
+            const state =
+                typeof req.query.state === 'string'
+                    ? req.query.state.trim()
+                    : undefined;
+
+            const minRent =
+                req.query.minRent !== undefined
+                    ? Number(req.query.minRent)
+                    : undefined;
+
+            const maxRent =
+                req.query.maxRent !== undefined
+                    ? Number(req.query.maxRent)
+                    : undefined;
+
+            const { properties, total } =
+                await propertyService.getAllProperties(page, limit, {
+                    search: search || undefined,
+                    type: type || undefined,
+                    status: status || undefined,
+                    city: city || undefined,
+                    state: state || undefined,
+                    minRent: Number.isFinite(minRent) ? minRent : undefined,
+                    maxRent: Number.isFinite(maxRent) ? maxRent : undefined,
+                });
+
+            HELPERS(req).log({
+                action: 'VIEW_PROPERTIES',
+                entity: 'Property',
+                description: `Listed properties (page ${page})`,
+            });
+
+            res.json(
+                paginatedResponse(
+                    properties,
+                    page,
+                    limit,
+                    total
+                )
+            );
+        } catch (error: any) {
+            HELPERS(req).log({
+                action: 'VIEW_PROPERTIES',
+                entity: 'Property',
+                status: 'Failed',
+                level: 'error',
+                errorMessage: error.message,
+            });
+
+            res.status(500).json({
+                success: false,
+                error: {
+                    message: error.message,
+                },
+            });
+        }
+    };
 
   getById = async (req: Request, res: Response) => {
     try {
