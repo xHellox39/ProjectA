@@ -19,6 +19,16 @@ router.get('/files', fileCtrl.list);
 router.get('/files/:fileId', fileCtrl.getById);
 router.delete('/files/:fileId', fileCtrl.remove);
 
+// CRUD endpoints (admin/landlord only)
+router.get('/', ctrl.list);
+router.get('/:id', ctrl.getById);
+router.post('/', adminOrLandlord, ctrl.create);
+router.put('/:id', adminOrLandlord, ctrl.update);
+router.delete('/:id', adminOrLandlord, ctrl.remove);
+router.post('/:id/activate', adminOrLandlord, ctrl.activate);
+router.post('/:id/suspend', adminOrLandlord, ctrl.suspend);
+router.post('/:id/change-role', adminOrLandlord, ctrl.changeRole);
+
 // My Documents media endpoint (includes property images)
 router.get('/my-media', fileCtrl.getUserMedia);
 
