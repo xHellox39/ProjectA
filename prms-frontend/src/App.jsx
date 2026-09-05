@@ -40,11 +40,13 @@ import Settings from './pages/Settings';
 import LandlordLayout from './components/LandlordLayout';
 import LandlordDashboard from './pages/LandlordDashboard';
 import LandlordSimplePage from './pages/LandlordSimplePage';
+import LandlordCategories from './pages/LandlordCategories';
 
 /*  Tenant  */
 import TenantLayout from './components/TenantLayout';
 import TenantDashboard from './pages/TenantDashboard';
 import TenantSimplePage from './pages/TenantSimplePage';
+import TenantCategories from './pages/TenantCategories';
 
 /*  Agent  */
 import AgentLayout from './components/AgentLayout';
@@ -280,6 +282,7 @@ function AppRoutes() {
           }
         />
         <Route path="heatmap" element={<LandlordHeatmap />} />
+        <Route path="categories" element={<LandlordCategories />} />
         <Route path="maintenance" element={<LandlordSimplePage label="Maintenance Requests" />} />
         <Route path="messages" element={<CommunicationHub />} />
         <Route path="settings" element={<Settings />} />
@@ -328,6 +331,7 @@ function AppRoutes() {
         <Route path="payments" element={<TenantPayments />} />
         <Route path="payments/:id" element={<PaymentReceipt />} />
         <Route path="maintenance" element={<TenantMaintenance />} />
+        <Route path="categories" element={<TenantCategories />} />
         <Route path="messages" element={<TenantSimplePage label="Messages"><CommunicationHub /></TenantSimplePage>} />
         <Route path="settings" element={<Settings />} />
         <Route

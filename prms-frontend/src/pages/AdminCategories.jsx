@@ -217,6 +217,49 @@ function AdminCategories() {
         </div>
       )}
 
+      {!loading && categories.length > 0 && (
+        <AnimatePresence>
+          {showForm && editingId === null && (
+        <motion.div
+          className="admin-categories-inline-form"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+        >
+          <h3>New Category</h3>
+          <input
+            className="form-input"
+            value={formName}
+            onChange={(e) => setFormName(e.target.value)}
+            placeholder="Category name *"
+          />
+          <input
+            className="form-input"
+            value={formDesc}
+            onChange={(e) => setFormDesc(e.target.value)}
+            placeholder="Description (optional)"
+          />
+          <label className="form-checkbox">
+            <input
+              type="checkbox"
+              checked={formShared}
+              onChange={(e) => setFormShared(e.target.checked)}
+            />{' '}
+            Shared across system
+          </label>
+          <div className="form-actions">
+            <button className="action-btn save" onClick={submitForm}>
+              <Save size={15} /> Create
+            </button>
+            <button className="action-btn cancel" onClick={() => setShowForm(false)}>
+              <X size={15} /> Cancel
+            </button>
+          </div>
+        </motion.div>
+          )}
+        </AnimatePresence>
+      )}
+
       {showForm && !loading && categories.length === 0 && editingId === null && (
         <motion.div
           className="admin-categories-inline-form"

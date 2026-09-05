@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { categoryApi } from '../api/categories'
-import { apiClient } from '../api'
 import {
   FolderOpen,
   Plus,
   Globe,
-  User,
-  Star,
+  Lock,
+  Edit2,
+  Trash2,
+  X,
+  Save,
   AlertCircle,
+  CheckCircle2,
+  EyeOff,
 } from 'lucide-react'
 import './AgentCategories.css'
 
@@ -17,6 +21,7 @@ function AgentCategories() {
   const [personalCats, setPersonalCats] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [formName, setFormName] = useState('')
   const [formDesc, setFormDesc] = useState('')
   const [toast, setToast] = useState(null)
@@ -29,18 +34,14 @@ function AgentCategories() {
   async function loadData() {
     setError('')
     try {
-      const userRes = await apiClient.get('/auth/me')
-      const userId = userRes.data?.data?.id
-
-      const [sharedRes, allRes] = await Promise.all([
+      const [sharedRes, personalRes] = await Promise.all([
         categoryApi.shared(),
-        categoryApi.list({ isShared: false }),
+        categoryApi.personalList(),
       ])
-
       setSharedCats(sharedRes.data?.data ?? [])
-      if (userId) {
-        setPersonalCats((allRes.data?.data ?? []).filter(c => c.ownerId === userId))
-      }
+      // Filter out disabled personal categories
+      const personal = (personalRes.data?.data ?? []).filter(c => !c.isDisabled)
+      setPersonalCats(personal)
     } catch (e) {
       setError(e.message || 'Failed to load categories')
       console.error('Failed to load categories', e)
@@ -54,21 +55,61 @@ function AgentCategories() {
     setTimeout(() => setToast(null), 2500)
   }
 
-  async function createPersonal() {
+  function startCreate() {
+    setEditingId(null)
+    setFormName('')
+    setFormDesc('')
+    setShowForm(true)
+  }
+
+  function startEdit(cat) {
+    setEditingId(cat.id)
+    setFormName(cat.name)
+    setFormDesc(cat.description ?? '')
+    setShowForm(true)
+  }
+
+  async function submitForm() {
     if (!formName.trim()) return showToast('Name is required', 'error')
     try {
-      await categoryApi.create({
-        name: formName.trim(),
-        description: formDesc.trim(),
-        isShared: false,
-      })
-      showToast('Personal category created')
+      if (editingId) {
+        await categoryApi.updatePersonal(editingId, {
+          name: formName.trim(),
+          description: formDesc.trim(),
+        })
+        showToast('Category updated')
+      } else {
+        await categoryApi.createPersonal({
+          name: formName.trim(),
+          description: formDesc.trim(),
+        })
+        showToast('Category created')
+      }
       setShowForm(false)
-      setFormName('')
-      setFormDesc('')
+      setEditingId(null)
       loadData()
     } catch (e) {
-      showToast(e.message || 'Failed', 'error')
+      showToast(e.message || 'Operation failed', 'error')
+    }
+  }
+
+  async function toggleDisabled(id) {
+    try {
+      await categoryApi.togglePersonal(id)
+      showToast('Category toggled')
+      loadData()
+    } catch (e) {
+      showToast(e.message || 'Toggle failed', 'error')
+    }
+  }
+
+  async function remove(id) {
+    try {
+      await categoryApi.removePersonal(id)
+      showToast('Category deleted')
+      loadData()
+    } catch (e) {
+      showToast(e.message || 'Delete failed', 'error')
     }
   }
 
@@ -100,17 +141,62 @@ function AgentCategories() {
     )
   }
 
+  function renderPersonal(cats) {
+    if (!cats.length) return null
+    return (
+      <div className="agent-categories-section">
+        <h2>My Personal Categories</h2>
+        <div className="agent-categories-list">
+          {cats.map((cat, i) => (
+            <motion.div
+              key={cat.id}
+              className="agent-category-card-full"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+            >
+              <div className="agent-category-main">
+                <div className="agent-category-icon"><Lock size={18} /></div>
+                <div className="agent-category-info">
+                  <h3>{cat.name}</h3>
+                  {cat.description && <p>{cat.description}</p>}
+                  <span className="agent-badge personal"><Lock size={11} /> Personal</span>
+                </div>
+              </div>
+              <div className="agent-category-actions">
+                {editingId === cat.id ? (
+                  <>
+                    <input className="edit-name" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Category name" />
+                    <input className="edit-desc" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="Description" />
+                    <button className="action-btn save" onClick={submitForm} title="Save"><Save size={15} /></button>
+                    <button className="action-btn cancel" onClick={() => { setShowForm(false); setEditingId(null) }} title="Cancel"><X size={15} /></button>
+                  </>
+                ) : (
+                  <>
+                    <button className="action-btn" onClick={() => startEdit(cat)} title="Edit"><Edit2 size={15} /></button>
+                    <button className="action-btn toggle" onClick={() => toggleDisabled(cat.id)} title="Disable"><EyeOff size={15} /></button>
+                    <button className="action-btn danger" onClick={() => remove(cat.id)} title="Delete"><Trash2 size={15} /></button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="agent-categories">
       <div className="agent-categories-header">
         <div>
-          <h1>My Categories</h1>
+          <h1>Categories</h1>
           <p>Browse shared categories and manage your own personal ones.</p>
         </div>
         <motion.button
           whileTap={{ scale: 0.96 }}
           className="agent-categories-add-btn"
-          onClick={() => setShowForm(true)}
+          onClick={startCreate}
         >
           <Plus size={17} /> Add Personal
         </motion.button>
@@ -123,7 +209,7 @@ function AgentCategories() {
       ) : (
         <>
           {renderSection('Shared Categories', sharedCats, <Globe size={18} />)}
-          {renderSection('My Personal Categories', personalCats, <User size={18} />)}
+          {renderPersonal(personalCats)}
 
           {(sharedCats.length === 0 && personalCats.length === 0) && (
             <div className="agent-categories-empty">
@@ -131,42 +217,34 @@ function AgentCategories() {
               <p>No categories available yet.</p>
             </div>
           )}
+
+          {personalCats.length === 0 && sharedCats.length > 0 && (
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No personal categories yet. Create one to get started.</p>
+          )}
         </>
       )}
 
       <AnimatePresence>
-        {showForm && (
-          <motion.div
-            className="agent-categories-form"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-          >
+        {showForm && !loading && editingId === null && (
+          <>
             <div className="agent-categories-backdrop" onClick={() => setShowForm(false)}></div>
-            <div className="agent-categories-form-inner">
-              <h3>New Personal Category</h3>
-              <input
-                className="form-input"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder="Category name *"
-              />
-              <input
-                className="form-input"
-                value={formDesc}
-                onChange={(e) => setFormDesc(e.target.value)}
-                placeholder="Description"
-              />
-              <div className="form-actions">
-                <button className="btn-primary" onClick={createPersonal}>
-                  Create
-                </button>
-                <button className="btn-secondary" onClick={() => setShowForm(false)}>
-                  Cancel
-                </button>
+            <motion.div
+              className="agent-categories-form"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <div className="agent-categories-form-inner">
+                <h3>New Personal Category</h3>
+                <input className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Category name *" />
+                <input className="form-input" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="Description" />
+                <div className="form-actions">
+                  <button className="btn-primary" onClick={submitForm}>Create</button>
+                  <button className="btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
