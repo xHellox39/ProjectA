@@ -14,6 +14,7 @@ import PublicPageTransition from './components/PublicPageTransition';
 /*  Public pages  */
 import GuestHome from './pages/GuestHome';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 import Register from './pages/Register';
 import RoleSelection from './pages/RoleSelection';
 import NotFound from './pages/NotFound';
@@ -143,6 +144,18 @@ function AppRoutes() {
             <LoginGuard>
               <PublicPageTransition>
                 <Login />
+              </PublicPageTransition>
+            </LoginGuard>
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute>
+            <LoginGuard>
+              <PublicPageTransition>
+                <ForgotPassword />
               </PublicPageTransition>
             </LoginGuard>
           </PublicRoute>
