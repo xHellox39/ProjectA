@@ -102,6 +102,7 @@ function ForgotPassword() {
           {step === 1 && "Enter your email and we'll send you a verification code."}
           {step === 2 && "Enter the 6-digit code shown below."}
           {step === 3 && "Set your new password."}
+          {step === 4 && "Your password has been reset successfully."}
         </motion.p>
 
         <AnimatePresence mode="wait">

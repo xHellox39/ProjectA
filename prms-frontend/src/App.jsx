@@ -345,7 +345,7 @@ function AppRoutes() {
         <Route path="payments/:id" element={<PaymentReceipt />} />
         <Route path="maintenance" element={<TenantMaintenance />} />
         <Route path="categories" element={<TenantCategories />} />
-        <Route path="messages" element={<TenantSimplePage label="Messages"><CommunicationHub /></TenantSimplePage>} />
+        <Route path="messages" element={<CommunicationHub />} />
         <Route path="settings" element={<Settings />} />
         <Route
           path="settings/customizer"
@@ -383,6 +383,7 @@ function AppRoutes() {
         <Route path="properties/:id" element={<PropertyDetail />} />
         <Route path="bookings" element={<AgentSimplePage label="My Bookings" />} />
         <Route path="maintenance" element={<AgentMaintenance />} />
+        <Route path="messages" element={<CommunicationHub />} />
         <Route path="categories" element={<AgentCategories />} />
         <Route path="settings" element={<Settings />} />
         <Route

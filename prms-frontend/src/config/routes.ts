@@ -78,6 +78,7 @@ export const ROUTES = {
     bookings: '/agent/bookings',
     finance: '/agent/finance',
     maintenance: '/agent/maintenance',
+    messages: '/agent/messages',
     reports: '/agent/reports',
     categories: '/agent/categories',
     settings: '/agent/settings',
