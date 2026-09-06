@@ -146,14 +146,19 @@ model Property {
   availableTo    DateTime?
   city           String?
   state          String?
+
+  // Google Maps coordinates
+  latitude       Float?
+  longitude      Float?
+
   ownerId        String
   owner          User      @relation(fields: [ownerId], references: [id])
   amenities      Amenity[]
   agentProperties AgentProperty[]
-  images             PropertyImage[]
-  videoUrls          Json?
-  documentUrls       Json?
-  bookings           Booking[]
+  images         PropertyImage[]
+  videoUrls      Json?
+  documentUrls   Json?
+  bookings       Booking[]
   invoices       Invoice[]
   favorites      Favorite[]
 

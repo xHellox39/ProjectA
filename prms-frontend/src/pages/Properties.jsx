@@ -504,12 +504,8 @@ function Properties() {
                                                                 {Number(
                                                                     p.price || p.rent || 0
                                                                 ).toLocaleString()}{' '}
-                                                                /mo
+                                                                /Month
                                                             </span>
-                                                        </div>
-
-                                                        <div className="property-units">
-                                                            {p.unitCount || p.unit_count || 0} units
                                                         </div>
                                                     </div>
                                                 </div>

@@ -1,739 +1,478 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  ChevronRight,
-  Clock,
-  Droplets,
-  Edit3,
-  Heart,
-  Loader2,
-  MapPin,
-  MessageSquare,
-  ParkingCircle,
-  Search,
-  ShieldCheck,
-  Star,
-  Sun,
-  Tv,
-  UserCircle,
-  Utensils,
-  Wifi,
-  Wind,
-  AlertTriangle,
+    ArrowLeft,
+    Building2,
+    CalendarDays,
+    ChevronRight,
+    Edit3,
+    ExternalLink,
+    FileText,
+    Loader2,
+    MapPin,
+    ShieldCheck,
+    UserCircle,
+    Video,
 } from 'lucide-react';
 import { propertyApi } from '../api';
+import { getFullUrl } from '../config/apiBaseUrl';
 import { useAuth } from '../contexts/AuthContext';
 import TenantBookingModal from '../components/TenantBookingModal';
 import ImageGallery from '../components/ImageGallery';
-import { VideoUploader, DocumentUploader } from '../components/MediaUploader';
 import './PropertyDetail.css';
 
-/* ================= AMENITY ICON MAP ================= */
-function amenityIcon(name) {
-  const lower = (name || '').toLowerCase();
-  if (lower.includes('wifi') || lower.includes('internet')) return <Wifi size={18} />;
-  if (lower.includes('water') || lower.includes('utilities')) return <Droplets size={18} />;
-  if (lower.includes('kitchen') || lower.includes('cooking')) return <Utensils size={18} />;
-  if (lower.includes('parking') || lower.includes('car')) return <ParkingCircle size={18} />;
-  if (lower.includes('tv') || lower.includes('streaming')) return <Tv size={18} />;
-  if (lower.includes('cooling') || lower.includes('ac') || lower.includes('air') || lower.includes('cond')) return <Wind size={18} />;
-  if (lower.includes('sun') || lower.includes('view') || lower.includes('balcony')) return <Sun size={18} />;
-  if (lower.includes('security') || lower.includes('safe') || lower.includes('cctv')) return <ShieldCheck size={18} />;
-  if (lower.includes('pool')) return <Droplets size={18} />;
-  return <Search size={18} />;
+const STATUS_CONFIG = {
+    AVAILABLE: { label: 'Available', tone: 'success' },
+    OCCUPIED: { label: 'Occupied', tone: 'warning' },
+    MAINTENANCE: { label: 'Maintenance', tone: 'danger' },
+    INACTIVE: { label: 'Inactive', tone: 'muted' },
+};
+
+function formatDate(value) {
+    if (!value) return 'Not set';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Not set';
+    return new Intl.DateTimeFormat('en-MY', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    }).format(date);
 }
 
-/* ================= BOOKING CARD (RIGHT SIDEBAR) ================= */
-function BookingCard({ property, onBookClick }) {
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
-  const [guests, setGuests] = useState(1);
-  const [showCalendar, setShowCalendar] = useState(false);
-
-  const today = new Date().toISOString().slice(0, 10);
-  const defaultCheckIn = today;
-  const defaultCheckOut = new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-
-  useEffect(() => {
-    setCheckIn(defaultCheckIn);
-    setCheckOut(defaultCheckOut);
-  }, []);
-
-  const nightlyRate = property.rent || 0;
-  const nights = Math.max(
-    1,
-    Math.round(
-      (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)
-    )
-  );
-  const subtotal = nightlyRate * nights;
-  const cleaningFee = Math.round(nightlyRate * 0.28);
-  const serviceFee = Math.round(nightlyRate * 0.33);
-  const total = subtotal + cleaningFee + serviceFee;
-
-  const formatRM = (n) =>
-    new Intl.NumberFormat('ms-MY', {
-      style: 'currency', currency: 'MYR', minimumFractionDigits: 0,
-    }).format(n);
-
-  // Mini calendar helpers
-  const currentMonth = checkIn ? new Date(checkIn) : new Date();
-  const monthName = currentMonth.toLocaleString('default', { month: 'long' });
-  const year = currentMonth.getFullYear();
-  const firstDay = new Date(year, currentMonth.getMonth(), 1).getDay();
-  const daysInMonth = new Date(year, currentMonth.getMonth() + 1, 0).getDate();
-  const todayNum = new Date().getDate();
-  const checkInNum = checkIn ? new Date(checkIn).getDate() : 0;
-  const checkOutNum = checkOut ? new Date(checkOut).getDate() : 0;
-
-  const getDayClass = (day) => {
-    if (day >= checkInNum && day < checkOutNum) return 'cal-selected';
-    if (day === checkInNum || day === checkOutNum) return 'cal-boundary';
-    if (day < todayNum) return 'cal-past';
-    return '';
-  };
-
-  // Build calendar days
-  const calDays = [];
-  const paddingMonths = [];
-  for (let i = 0; i < firstDay; i++) {
-    const prevMonthDay = new Date(year, currentMonth.getMonth(), 0 - (firstDay - 1 - i)).getDate();
-    calDays.push({ day: prevMonthDay, current: false });
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    calDays.push({ day: d, current: true });
-  }
-
-  return (
-    <>
-      <div className="booking-card">
-        <div className="booking-card-header">
-          <div>
-            <div className="booking-price-line">
-              <span className="booking-price-amount">{formatRM(nightlyRate)} / {property.rent_period || 'month' || 'night'}</span>
-              <span className="booking-rating">
-                <Star size={13} fill="#F59E0B" color="#F59E0B" />
-                {property.rating || '4.9'}{' '}
-                <span className="booking-rating-loc">{property.city || 'Bukit Bintang'}, {property.state || 'KL'}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Dates / Guests */}
-        <div className="booking-inputs">
-          <div className="booking-input-row">
-            <div className="booking-input-col">
-              <span className="booking-input-label">CHECK-IN</span>
-              <input
-                type="date"
-                value={checkIn}
-                min={today}
-                onChange={(e) => setCheckIn(e.target.value)}
-                className="booking-date-input"
-              />
-            </div>
-            <div className="booking-input-col">
-              <span className="booking-input-label">CHECKOUT</span>
-              <input
-                type="date"
-                value={checkOut}
-                min={checkIn || today}
-                onChange={(e) => setCheckOut(e.target.value)}
-                className="booking-date-input"
-              />
-            </div>
-          </div>
-          <div className="booking-input-row">
-            <div className="booking-input-col">
-              <span className="booking-input-label">GUESTS</span>
-              <input
-                type="number"
-                min={1}
-                max={property.capacity || 10}
-                value={guests}
-                onChange={(e) => setGuests(parseInt(e.target.value) || 1)}
-                className="booking-date-input"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Mini Calendar */}
-        <div className="booking-minical">
-          <div className="booking-minical-header">
-            <span
-              className="booking-minical-nav"
-              onClick={() => setCheckIn(new Date(year, currentMonth.getMonth() - 1, 1).toISOString().slice(0, 10))}
-            >
-              {'<'}
-            </span>
-            <span>{monthName} {year}</span>
-            <span
-              className="booking-minical-nav"
-              onClick={() => setCheckIn(new Date(year, currentMonth.getMonth() + 1, 1).toISOString().slice(0, 10))}
-            >
-              {'>'}
-            </span>
-          </div>
-          <div className="booking-minical-weekdays">
-            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-              <span key={d}>{d}</span>
-            ))}
-          </div>
-          <div className="booking-minical-days">
-            {calDays.map((d, i) => (
-              <span
-                key={i}
-                className={`booking-minical-day ${getDayClass(d.day)}${!d.current ? ' booking-minical-other' : ''}`}
-              >
-                {d.day}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Payment methods banner */}
-        <div className="booking-payment-banner">
-          SUPPORTED: FPX ONLINE BANKING · GRADAPAY
-        </div>
-
-        {/* Book button */}
-        <button
-          className="book-now-btn"
-          onClick={() => {
-            if (property.status === 'OCCUPIED' || property.status === 'MAINTENANCE') return;
-            onBookClick();
-          }}
-          disabled={property.status === 'OCCUPIED' || property.status === 'MAINTENANCE'}
-        >
-          {property.status === 'OCCUPIED' ? 'Occupied' : property.status === 'MAINTENANCE' ? 'Maintenance' : 'Book Now'}
-        </button>
-
-        {/* Approximate price */}
-        <div className="booking-approximate">
-          You won't be charged yet
-        </div>
-
-        {/* Price breakdown */}
-        <div className="booking-breakdown">
-          <div className="breakdown-row">
-            <span>{formatRM(nightlyRate)} × {nights} {nights === 1 ? 'night' : 'nights'}</span>
-            <span>{formatRM(subtotal)}</span>
-          </div>
-          <div className="breakdown-row">
-            <span>Cleaning fee</span>
-            <span>{formatRM(cleaningFee)}</span>
-          </div>
-          <div className="breakdown-row">
-            <span>Platform service fee</span>
-            <span>{formatRM(serviceFee)}</span>
-          </div>
-          <div className="breakdown-total">
-            <span>Total before taxes</span>
-            <span>{formatRM(total)}</span>
-          </div>
-        </div>
-
-        {/* Message Owner */}
-        <button className="message-owner-btn">
-          <MessageSquare size={16} />
-          Message Owner
-        </button>
-      </div>
-
-      {/* Report this listing */}
-      <a href="#" className="report-listing">
-        <AlertTriangle size={13} />
-        Report this listing
-      </a>
-    </>
-  );
+function formatRent(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return 'RM 0';
+    return new Intl.NumberFormat('ms-MY', {
+        style: 'currency',
+        currency: 'MYR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
 }
 
-/* ================= IMAGE GALLERY ================= */
-/* Moved to src/components/ImageGallery.jsx with placeholder fallback */
+function getStatus(status) {
+    return STATUS_CONFIG[status] || {
+        label: status || 'Unknown',
+        tone: 'muted',
+    };
+}
 
-/* ================= MAIN COMPONENT ================= */
+function normalizeMediaList(value) {
+    if (!Array.isArray(value)) return [];
+
+    return value
+        .map((item, index) => {
+            if (typeof item === 'string') {
+                return { id: `${item}-${index}`, url: item, name: item };
+            }
+
+            if (item && typeof item === 'object') {
+                const url = item.url || item.path || item.href;
+                if (!url) return null;
+                return {
+                    id: item.id || item._id || `${url}-${index}`,
+                    url,
+                    name: item.documentName || item.name || url,
+                };
+            }
+
+            return null;
+        })
+        .filter(Boolean);
+}
+
+function getImageItems(images) {
+    return (Array.isArray(images) ? images : []).filter(
+        (image) => !image?.type || image.type === 'image'
+    );
+}
+
 function PropertyDetail() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user } = useAuth();
-  const [property, setProperty] = useState(null);
-  const [images, setImages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [liked, setLiked] = useState(false);
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [showFullDescription, setShowFullDescription] = useState(false);
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { user } = useAuth();
 
-  /* Detect if rendered inside a role-protected PRMS layout.
-     When true, hide the EstateSync topbar/footer so the PRMS
-     layout navbar/sidebar are the only navigation surfaces. */
-  const isInRoleLayout = ['/admin/', '/landlord/', '/tenant/', '/agent/'].some(
-    (prefix) => location.pathname.startsWith(prefix)
-  );
+    const [property, setProperty] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [showBookingModal, setShowBookingModal] = useState(false);
 
-  /* Detect if the current user is the property owner */
-  const isPropertyOwner = (() => {
-    if (!user || !property || !property.owner) return false;
-    const userRole = (user.role || '').toLowerCase();
-    // Admin can edit any property; landlord/owner can edit their own
-    if (userRole.includes('admin')) return true;
-    if (property.owner.id === user.id) return true;
-    if (property.ownerId === user.id) return true;
-    return false;
-  })();
+    const isInRoleLayout = ['/admin/', '/landlord/', '/tenant/', '/agent/'].some(
+        (prefix) => location.pathname.startsWith(prefix)
+    );
 
-  useEffect(() => {
-    let cancelled = false;
-    async function fetch() {
-      try {
-        const res = await propertyApi.getById(id);
-        if (!cancelled && res?.data) {
-          const propData = res.data.data;
-          setProperty(propData);
-          setImages(propData.images || []);
+    const canEdit = useMemo(() => {
+        if (!user || !property) return false;
+        const role = String(user.role || '').toLowerCase();
+        if (role.includes('admin')) return true;
+        return property.ownerId === user.id || property.owner?.id === user.id;
+    }, [property, user]);
+
+    const status = getStatus(property?.status);
+    const images = useMemo(() => getImageItems(property?.images), [property?.images]);
+    const videos = useMemo(() => normalizeMediaList(property?.videoUrls), [property?.videoUrls]);
+    const documents = useMemo(() => normalizeMediaList(property?.documentUrls), [property?.documentUrls]);
+    const amenities = Array.isArray(property?.amenities) ? property.amenities : [];
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadProperty() {
+            setLoading(true);
+            setError(null);
+
+            try {
+                const response = await propertyApi.getById(id);
+                const data = response?.data?.data ?? response?.data;
+
+                if (!cancelled) {
+                    if (!data) {
+                        setError('Property not found');
+                        setProperty(null);
+                    } else {
+                        setProperty(data);
+                    }
+                    setLoading(false);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setError(
+                        err.response?.data?.error?.message ||
+                        err.message ||
+                        'Failed to load property'
+                    );
+                    setLoading(false);
+                }
+            }
         }
-        setLoading(false);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err.response?.data?.error?.message || 'Failed to load property');
-          setLoading(false);
-        }
-      }
+
+        if (id) loadProperty();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [id]);
+
+    function getEditPath() {
+        const role = String(user?.role || '').toLowerCase();
+        if (role.includes('admin')) return `/admin/properties/edit/${id}`;
+        if (role.includes('landlord')) return `/landlord/properties/edit/${id}`;
+        return `/properties/edit/${id}`;
     }
-    fetch();
-    return () => { cancelled = true; };
-  }, [id]);
 
-  /* Owner info */
-  const owner = property?.owner;
-  /* Description */
-  const description = property?.description || '';
-  const shortDesc = description.length > 350 ? description.slice(0, 350) + '...' : description;
-
-  /* Capacity line: X guests · Y bedrooms · Z baths */
-  const capacity = property?.capacity || 0;
-  const bedrooms = property?.bedrooms || 0;
-  const bathrooms = property?.bathrooms || 0;
-
-  /* Star rating placeholder */
-  const rating = property?.rating || '4.9';
-
-  /* Status badge */
-  const statusConfig =
-    {
-      AVAILABLE: { text: 'Available', color: '#22c55e' },
-      OCCUPIED: { text: 'Occupied', color: '#f59e0b' },
-      MAINTENANCE: { text: 'Maintenance', color: '#ef4444' },
-    }[property?.status];
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  /* Amenities */
-  const amenities = property?.amenities || [];
-
-  /* Reviews placeholder */
-  const sampleReviews = [
-    {
-      name: 'Sarah J.',
-      date: 'October 2024',
-      text: 'The views from this property were even better than the photos. Great location and friendly host!',
-      rating: 5,
-    },
-    {
-      name: 'Michael R.',
-      date: 'September 2024',
-      text: 'Absolutely loved every moment. Clean, well-maintained, and perfectly described. Highly recommend!',
-      rating: 5,
-    },
-  ];
-
-  /* Loading */
-  if (loading) {
-    return (
-      <main className="property-detail-page">
-        <div className="pd-loading">
-          <Loader2 size={32} className="pd-spinner" />
-          <p>Loading property...</p>
-        </div>
-      </main>
-    );
-  }
-
-  /* Error */
-  if (error || !property) {
-    return (
-      <main className="property-detail-page">
-        <div className="pd-error">
-          <p>{error || 'Property not found'}</p>
-          <button onClick={() => navigate(-1)}>Go Back</button>
-        </div>
-      </main>
-    );
-  }
-
-  return (
-    <main className="property-detail-page" data-customize-id="global.page">
-      {/* ── Top Bar (EstateSync-style, only on public routes) ── */}
-      {!isInRoleLayout && (
-        <header className="pd-topbar" data-customize-id="global.header">
-          <Link to="/" className="pd-logo" data-customize-id="global.brand">PRMS</Link>
-          <nav className="pd-topnav" data-customize-id="global.tabs">
-            <Link to="/properties" className="active">Properties</Link>
-            <Link to="/dashboard">Dashboard</Link>
-            <Link to="/bookings">Bookings</Link>
-          </nav>
-          <div className="pd-topactions" data-customize-id="global.top-actions">
-            <button type="button" className="pd-icon-btn">&lt;Search size={18} /&gt;</button>
-            <button type="button" className="pd-icon-btn">&lt;UserCircle size={20} /&gt;</button>
-            <button type="button" className="pd-switch-btn">Switch Role</button>
-          </div>
-        </header>
-      )}
-
-      <motion.div
-        className="pd-content"
-        data-customize-id="global.body"
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        {/* ── Breadcrumb ── */}
-        <div className="pd-breadcrumb" data-customize-id="detail.breadcrumb">
-          <Link to="/properties">Properties</Link>
-          <ChevronRight size={12} />
-          <span>{property.city || 'Kuala Lumpur'}</span>
-          <ChevronRight size={12} />
-          <span className="breadcrumb-title">{property.title}</span>
-        </div>
-
-        {/* ── Title + Rating ── */}
-        <div className="pd-title-row" data-customize-id="detail.title">
-          <h1 className="pd-title">{property.title}</h1>
-          <div className="pd-rating">
-            <Star size={16} fill="#F59E0B" color="#F59E0B" />
-            <span>{rating}</span>
-            <span className="pd-rating-loc">
-              <MapPin size={12} />
-              {property.city || 'Bukit Bintang'}, {property.state || 'KL'}
-            </span>
-          </div>
-        </div>
-
-        {/* ── Image Gallery ── */}
-        <ImageGallery
-          images={images.length > 0 ? images : property?.images}
-          propertyId={id}
-          userRole={user?.role}
-          onImagesChange={(updatedImages) => {
-            setImages(updatedImages);
-            setProperty((prev) => (prev ? { ...prev, images: updatedImages } : prev));
-          }}
-          wrapperProps={{ className: 'mb-6', 'data-customize-id': 'detail.gallery' }}
-        />
-
-        {/* ── Two-column layout ── */}
-        <div className="pd-body" data-customize-id="detail.body">
-          {/* LEFT COLUMN */}
-          <div className="pd-left" data-customize-id="detail.left">
-            {/* Hosted by section */}
-            <div className="pd-host-section">
-              <div className="pd-host-top">
-                <div>
-                  <h2 className="pd-host-heading">
-                    Hosted by {owner?.full_name || 'Property Owner'}
-                  </h2>
-                  <p className="pd-capacity-line">
-                    {capacity || 10} guests · {bedrooms || 5} bedrooms · {bathrooms || 4.5} baths
-                    {property?.floorArea && ` · ${property.floorArea} sq ft`}
-                  </p>
+    if (loading) {
+        return (
+            <main className="property-detail-page">
+                <div className="pd-loading">
+                    <Loader2 size={32} className="pd-spinner" />
+                    <p>Loading property...</p>
                 </div>
-                <div className="pd-host-right">
-                  {owner && (
-                    <div className="pd-host-avatar">
-                      <UserCircle size={48} />
-                    </div>
-                  )}
-                  {isPropertyOwner && (
-                    <motion.button
-                      className="pd-edit-btn"
-                      onClick={() => {
-                        const lower = (user?.role || '').toLowerCase();
-                        const prefix = lower.includes('admin')
-                          ? '/admin/properties/edit'
-                          : lower.includes('landlord')
-                            ? '/landlord/properties/edit'
-                            : '/properties/edit';
-                        navigate(`${prefix}/${id}`);
-                      }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
-                    >
-                      <Edit3 size={16} />
-                      Edit Property
-                    </motion.button>
-                  )}
-                </div>
-              </div>
+            </main>
+        );
+    }
 
-              {/* Badges */}
-              <div className="pd-badges">
-                <div className="pd-badge">
-                  <ShieldCheck size={22} className="pd-badge-icon" />
-                  <div>
-                    <div className="pd-badge-title">Verified Property</div>
-                    <div className="pd-badge-desc">This property has been verified and approved.</div>
-                  </div>
-                </div>
-                <div className="pd-badge">
-                  <MapPin size={22} className="pd-badge-icon" />
-                  <div>
-                    <div className="pd-badge-title">Great location</div>
-                    <div className="pd-badge-desc">Conveniently located with great access to amenities.</div>
-                  </div>
-                </div>
-                <div className="pd-badge">
-                  <Clock size={22} className="pd-badge-icon" />
-                  <div>
-                    <div className="pd-badge-title">Free cancellation</div>
-                    <div className="pd-badge-desc">Full refund if you change your mind within 48 hours.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="pd-divider" />
-
-            {/* Description */}
-            <div className="pd-section">
-              <div className="pd-description">
-                <p>
-                  {showFullDescription ? description : shortDesc}
-                  {description.length > 350 && (
-                    <button className="pd-show-more" onClick={() => setShowFullDescription(!showFullDescription)}>
-                      Show more{' '}
-                      <ChevronRight size={14} className="pd-show-more-arrow" />
+    if (error || !property) {
+        return (
+            <main className="property-detail-page">
+                <div className="pd-error">
+                    <Building2 size={40} />
+                    <p>{error || 'Property not found'}</p>
+                    <button type="button" onClick={() => navigate(-1)}>
+                        <ArrowLeft size={16} />
+                        Go Back
                     </button>
-                  )}
-                </p>
-              </div>
-              {/* Status pill */}
-              <div className="pd-status-pill" style={{
-                color: statusConfig?.color || '#22c55e',
-                borderColor: statusConfig?.color || '#22c55e',
-              }}>
-                <ShieldCheck size={14} />
-                {statusConfig?.text || 'Available'}
-              </div>
-            </div>
-
-            <div className="pd-divider" />
-
-            {/* Amenities */}
-            {amenities.length > 0 && (
-              <>
-                <div className="pd-section">
-                  <h3 className="pd-section-title">What this place offers</h3>
-                  <div className="pd-amenities-grid">
-                    {amenities.map((a) => (
-                      <div className="pd-amenity" key={a.id}>
-                        <span className="pd-amenity-icon">{amenityIcon(a.name)}</span>
-                        <span>{a.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {amenities.length > 6 && (
-                    <button className="pd-amenity-more">Show all amenities</button>
-                  )}
                 </div>
-                <div className="pd-divider" />
-              </>
-            )}
+            </main>
+        );
+    }
 
-            {/* Building Facilities */}
-            {property?.buildingFacilities && property.buildingFacilities.length > 0 && (
-              <>
-                <div className="pd-divider" />
-                <div className="pd-section">
-                  <h3 className="pd-section-title">Building Facilities</h3>
-                  <div className="pd-facilities-chips">
-                    {property.buildingFacilities.map((facility, i) => (
-                      <span className="pd-facility-chip" key={i}>
-                        {facility}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Pet Policy */}
-            {property?.petPolicy && (
-              <>
-                <div className="pd-divider" />
-                <div className="pd-section">
-                  <h3 className="pd-section-title">
-                    {' '}Pet Policy
-                  </h3>
-                  <p className="pd-pet-policy-text">{property.petPolicy}</p>
-                </div>
-              </>
-            )}
-
-            {/* Video & Document sections (visible when logged in and can edit) */}
-            {(user?.role === "Landlord" || user?.role === "Admin" || user?.role === "landlord" || user?.role === "admin") && (
-              <>
-                <div className="pd-divider" />
-                <div className="pd-section">
-                  <VideoUploader
-                    propertyId={id}
-                    videos={property?.videoUrls || []}
-                    onChange={(updated) => {
-                      setProperty((prev) => prev ? { ...prev, videoUrls: updated } : prev);
-                    }}
-                  />
-                </div>
-                <div className="pd-divider" />
-                <div className="pd-section">
-                  <DocumentUploader
-                    propertyId={id}
-                    documents={property?.documentUrls || []}
-                    onChange={(updated) => {
-                      setProperty((prev) => prev ? { ...prev, documentUrls: updated } : prev);
-                    }}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Map section */}
-            <div className="pd-section">
-              <h3 className="pd-section-title">Where you'll be</h3>
-              <p className="pd-map-location">{property.address || property.city || 'Kuala Lumpur'}</p>
-              <div className="pd-map">
-                {/* Embedded map placeholder */}
-                {property.latitude && property.longitude ? (
-                  <iframe
-                    title="Property location"
-                    className="pd-map-iframe"
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${property.longitude - 0.01},${property.latitude - 0.01},${property.longitude + 0.01},${property.latitude + 0.01}&layer=mapnik&marker=${property.latitude},${property.longitude}`}
-                    width="100%"
-                    height="300"
-                    frameBorder="0"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div className="pd-map-placeholder">
-                    <MapPin size={48} />
-                    <span>Map coming soon — address: {property.address || 'TBD'}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="pd-divider" />
-
-            {/* Reviews */}
-            <div className="pd-section">
-              <h3 className="pd-section-title">
-                <Star size={16} fill="#222" color="#222" />
-                {' '}{rating} · {sampleReviews.length} reviews
-              </h3>
-              <div className="pd-reviews">
-                {sampleReviews.map((r, i) => (
-                  <div className="pd-review" key={i}>
-                    <div className="pd-review-avatar">
-                      <UserCircle size={36} />
+    return (
+        <main className="property-detail-page" data-customize-id="global.page">
+            {!isInRoleLayout && (
+                <header className="pd-topbar" data-customize-id="global.header">
+                    <Link to="/" className="pd-logo" data-customize-id="global.brand">
+                        PRMS
+                    </Link>
+                    <nav className="pd-topnav" data-customize-id="global.tabs">
+                        <Link to="/properties" className="active">Properties</Link>
+                        <Link to="/dashboard">Dashboard</Link>
+                        <Link to="/bookings">Bookings</Link>
+                    </nav>
+                    <div className="pd-topactions" data-customize-id="global.top-actions">
+                        <Link to="/properties" className="pd-top-action-link">Properties</Link>
                     </div>
-                    <div className="pd-review-body">
-                      <div className="pd-review-header">
-                        <strong>{r.name}</strong>
-                        <span className="pd-review-date">{r.date}</span>
-                      </div>
-                      <div className="pd-review-stars">
-                        {'★ '.repeat(r.rating)}
-                      </div>
-                      <p>{r.text}</p>
+                </header>
+            )}
+
+            <motion.div
+                className="pd-content"
+                data-customize-id="global.body"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+            >
+                <section className="pd-title-row" data-customize-id="detail.title">
+                    <div className="pd-title-copy">
+                        <h1 className="pd-title">{property.title}</h1>
+                        <div className="pd-title-meta">
+                            <span className={`pd-status-badge pd-status-${status.tone}`}>
+                                <span className="pd-status-dot" />
+                                {status.label}
+                            </span>
+                            <span className="pd-type-label">{property.property_type || 'Property'}</span>
+                            {(property.city || property.state) && (
+                                <span className="pd-location-inline">
+                                    <MapPin size={15} />
+                                    {property.city || property.state}
+                                    {property.city && property.state ? `, ${property.state}` : ''}
+                                </span>
+                            )}
+                        </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <button className="pd-amenity-more">Show all reviews</button>
-            </div>
-          </div>
 
-          {/* RIGHT COLUMN — Sticky Booking Card */}
-          <div className="pd-right">
-            <BookingCard
-              property={property}
-              onBookClick={() => setShowBookingModal(true)}
-            />
-          </div>
-        </div>
-      </motion.div>
+                    <div className="pd-title-actions">
+                        <button type="button" className="pd-back-btn" onClick={() => navigate(-1)}>
+                            <ArrowLeft size={16} />
+                            Back
+                        </button>
+                        {canEdit && (
+                            <button type="button" className="pd-edit-btn" onClick={() => navigate(getEditPath())}>
+                                <Edit3 size={16} />
+                                Edit Property
+                            </button>
+                        )}
+                    </div>
+                </section>
 
-      {/* Footer (EstateSync-style, only on public routes) */}
-      {!isInRoleLayout && (
-        <footer className="pd-footer">
-          <div className="pd-footer-inner">
-            <div className="pd-footer-col">
-              <h4>PRMS</h4>
-              <p>The world's most trusted platform for luxury property management and short-term rentals.</p>
-            </div>
-            <div className="pd-footer-col">
-              <h4>Support</h4>
-              <a href="#">Help Center</a>
-              <a href="#">Cancellation options</a>
-              <a href="#">Safety information</a>
-            </div>
-            <div className="pd-footer-col">
-              <h4>Hosting</h4>
-              <a href="#">List your property</a>
-              <a href="#">Hosting resources</a>
-              <a href="#">Community forum</a>
-            </div>
-            <div className="pd-footer-col">
-              <h4>Newsletter</h4>
-              <p>Get the latest travel news and property deals.</p>
-              <div className="pd-footer-newsletter">
-                <input type="email" placeholder="Email address" />
-                <button type="button">Join</button>
-              </div>
-            </div>
-          </div>
-          <div className="pd-footer-bottom">
-            <span>© 2024 PRMS Inc. All rights reserved.</span>
-            <div className="pd-footer-links">
-              <a href="#">Privacy</a>
-              <a href="#">Terms</a>
-              <a href="#">Sitemap</a>
-            </div>
-          </div>
-        </footer>
-      )}
+                <section data-customize-id="detail.gallery" className="pd-gallery-section">
+                    <ImageGallery
+                        images={images}
+                        propertyId={id}
+                        /* Detail is read-only; editing belongs on PropertyEdit. */
+                        userRole={null}
+                        wrapperProps={{ 'data-customize-id': 'detail.gallery-inner' }}
+                    />
+                </section>
 
-      {/* ── Heart overlay on gallery ── */}
-      <button
-        className="pd-heart"
-        onClick={() => setLiked(!liked)}
-        aria-label="Like"
-      >
-        <Heart size={20} fill={liked ? '#D82A2A' : 'none'} stroke="#D82A2A" />
-      </button>
+                <div className="pd-body" data-customize-id="detail.body">
+                    <div className="pd-left" data-customize-id="detail.left">
+                        <section className="pd-section pd-overview-section">
+                            <div className="pd-section-heading-row">
+                                <div>
+                                    <div className="pd-section-kicker">OVERVIEW</div>
+                                    <h2 className="pd-section-title">Property information</h2>
+                                </div>
+                                <span className={`pd-status-badge pd-status-${status.tone}`}>
+                                    <span className="pd-status-dot" />
+                                    {status.label}
+                                </span>
+                            </div>
 
-      {/* Booking Modal */}
-      <TenantBookingModal
-        property={property}
-        isOpen={showBookingModal}
-        onClose={() => setShowBookingModal(false)}
-      />
-    </main>
-  );
+                            <div className="pd-info-grid">
+                                <div className="pd-info-item">
+                                    <span className="pd-info-label">Monthly rent</span>
+                                    <strong className="pd-info-value pd-rent-value">{formatRent(property.rent)}</strong>
+                                </div>
+                                <div className="pd-info-item">
+                                    <span className="pd-info-label">Property type</span>
+                                    <strong className="pd-info-value">{property.property_type || 'Not set'}</strong>
+                                </div>
+                                <div className="pd-info-item">
+                                    <span className="pd-info-label">Category</span>
+                                    <strong className="pd-info-value">{property.category?.name || 'Not assigned'}</strong>
+                                </div>
+                            </div>
+                        </section>
+
+                        <div className="pd-divider" />
+
+                        <section className="pd-section">
+                            <div className="pd-section-kicker">LOCATION</div>
+                            <h2 className="pd-section-title">Property address</h2>
+                            <div className="pd-address-card">
+                                <div className="pd-address-icon"><MapPin size={20} /></div>
+                                <div className="pd-address-content">
+                                    <strong>{property.address || 'Address not set'}</strong>
+                                    <span>
+                                        {[property.city, property.state].filter(Boolean).join(', ') || 'Location not set'}
+                                    </span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <div className="pd-divider" />
+
+                        <section className="pd-section">
+                            <div className="pd-section-kicker">AVAILABILITY</div>
+                            <h2 className="pd-section-title">Rental availability</h2>
+                            <div className="pd-availability-grid">
+                                <div className="pd-availability-item">
+                                    <CalendarDays size={19} />
+                                    <div>
+                                        <span>Available from</span>
+                                        <strong>{formatDate(property.availableFrom)}</strong>
+                                    </div>
+                                </div>
+                                <div className="pd-availability-item">
+                                    <CalendarDays size={19} />
+                                    <div>
+                                        <span>Available to</span>
+                                        <strong>{formatDate(property.availableTo)}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {property.description && (
+                            <>
+                                <div className="pd-divider" />
+                                <section className="pd-section">
+                                    <div className="pd-section-kicker">DESCRIPTION</div>
+                                    <h2 className="pd-section-title">About this property</h2>
+                                    <p className="pd-description-text">{property.description}</p>
+                                </section>
+                            </>
+                        )}
+
+                        {amenities.length > 0 && (
+                            <>
+                                <div className="pd-divider" />
+                                <section className="pd-section">
+                                    <div className="pd-section-kicker">AMENITIES</div>
+                                    <h2 className="pd-section-title">What this property offers</h2>
+                                    <div className="pd-amenities-grid">
+                                        {amenities.map((amenity) => (
+                                            <div className="pd-amenity" key={amenity.id || amenity.name}>
+                                                <span className="pd-amenity-icon"><ShieldCheck size={18} /></span>
+                                                <span>{amenity.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            </>
+                        )}
+
+                        {videos.length > 0 && (
+                            <>
+                                <div className="pd-divider" />
+                                <section className="pd-section">
+                                    <div className="pd-section-kicker">MEDIA</div>
+                                    <h2 className="pd-section-title">Videos</h2>
+                                    <div className="pd-media-list">
+                                        {videos.map((video) => (
+                                            <a
+                                                key={video.id}
+                                                className="pd-media-item"
+                                                href={getFullUrl(video.url)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                <span className="pd-media-icon"><Video size={18} /></span>
+                                                <span className="pd-media-name">{video.name}</span>
+                                                <ExternalLink size={15} />
+                                            </a>
+                                        ))}
+                                    </div>
+                                </section>
+                            </>
+                        )}
+
+                        {documents.length > 0 && (
+                            <>
+                                <div className="pd-divider" />
+                                <section className="pd-section">
+                                    <div className="pd-section-kicker">DOCUMENTS</div>
+                                    <h2 className="pd-section-title">Property documents</h2>
+                                    <div className="pd-media-list">
+                                        {documents.map((document) => (
+                                            <a
+                                                key={document.id}
+                                                className="pd-media-item"
+                                                href={getFullUrl(document.url)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                <span className="pd-media-icon"><FileText size={18} /></span>
+                                                <span className="pd-media-name">{document.name}</span>
+                                                <ExternalLink size={15} />
+                                            </a>
+                                        ))}
+                                    </div>
+                                </section>
+                            </>
+                        )}
+                    </div>
+
+                    <aside className="pd-right">
+                        <section className="pd-summary-card">
+                            <div className="pd-summary-kicker">RENTAL SUMMARY</div>
+                            <div className="pd-summary-price">{formatRent(property.rent)}</div>
+                            <div className="pd-summary-period">per month</div>
+
+                            <div className="pd-summary-status">
+                                <span className={`pd-status-badge pd-status-${status.tone}`}>
+                                    <span className="pd-status-dot" />
+                                    {status.label}
+                                </span>
+                            </div>
+
+                            <div className="pd-summary-divider" />
+
+                            <div className="pd-summary-row">
+                                <CalendarDays size={17} />
+                                <div>
+                                    <span>Available from</span>
+                                    <strong>{formatDate(property.availableFrom)}</strong>
+                                </div>
+                            </div>
+
+                            <div className="pd-summary-row">
+                                <CalendarDays size={17} />
+                                <div>
+                                    <span>Available to</span>
+                                    <strong>{formatDate(property.availableTo)}</strong>
+                                </div>
+                            </div>
+
+                            {String(user?.role || '').toLowerCase() === 'tenant' && status.tone === 'success' && (
+                                <button
+                                    type="button"
+                                    className="pd-book-btn"
+                                    onClick={() => setShowBookingModal(true)}
+                                >
+                                    <CalendarDays size={17} />
+                                    Book Property
+                                </button>
+                            )}
+                        </section>
+
+                        <section className="pd-owner-card">
+                            <div className="pd-section-kicker">OWNER</div>
+                            <div className="pd-owner-main">
+                                <div className="pd-owner-avatar">
+                                    <UserCircle size={42} />
+                                </div>
+                                <div>
+                                    <strong>{property.owner?.full_name || 'Property Owner'}</strong>
+                                    <span>{property.owner?.email || 'Email not available'}</span>
+                                </div>
+                            </div>
+                        </section>
+                    </aside>
+                </div>
+            </motion.div>
+
+            {String(user?.role || '').toLowerCase() === 'tenant' && (
+                <TenantBookingModal
+                    property={property}
+                    isOpen={showBookingModal}
+                    onClose={() => setShowBookingModal(false)}
+                />
+            )}
+        </main>
+    );
 }
 
-export default PropertyDetail
+export default PropertyDetail;

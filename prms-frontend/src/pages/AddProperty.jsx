@@ -1,1018 +1,1262 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCustomization } from '../contexts/CustomizationContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  MapPin,
-  DollarSign,
-  Upload,
-  ArrowLeft,
-  X,
-  Save,
-  LayoutGrid,
-  Image as ImageIcon,
+    MapPin,
+    DollarSign,
+    Upload,
+    ArrowLeft,
+    X,
+    Save,
+    LayoutGrid,
+    Image as ImageIcon,
+    Plus,
+    Trash2,
+    Search,
+    Loader2,
 } from 'lucide-react';
 import { getApiBaseUrl } from '../config/apiBaseUrl';
 import { getPropertyRoute } from '../config/routes';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import './AddProperty.css';
 
 const PROPERTY_TYPES = [
-  'Apartment',
-  'House',
-  'Condo',
-  'Townhouse',
-  'Studio',
-  'Duplex',
+    'Residential',
+    'Commercial',
+    'Industrial',
+    'Land',
 ];
 
 const PROPERTY_STATUS = [
-  'AVAILABLE',
-  'RENTED',
-  'MAINTENANCE',
-  'INACTIVE',
+    'AVAILABLE',
+    'RENTED',
+    'MAINTENANCE',
+    'INACTIVE',
 ];
 
-const CATEGORIES = [
-  'Residential',
-  'Commercial',
-  'Luxury',
-  'Student Housing',
-  'Pet Friendly',
-  'Short-term',
+const AMENITY_OPTIONS = [
+    'WiFi', 'Parking', 'Laundry', 'Pool', 'Gym', 'Elevator',
+    'Air Conditioning', 'Balcony', 'Garden', 'Pet Friendly',
+    'Furnished', 'Security', 'Storage', 'Dishwasher',
 ];
+
+const DEFAULT_MAP_POSITION = [3.139, 101.6869];
+const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+
+const markerIcon = new L.Icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+});
+
+function MapClickHandler({ onSelect }) {
+    useMapEvents({
+        click(event) {
+            onSelect(event.latlng.lat, event.latlng.lng);
+        },
+    });
+    return null;
+}
 
 const defaultImagePlaceholders = [];
 
 function AddProperty() {
-  const { user } = useAuth();
-  const { themeColors } = useCustomization();
-  const { id } = useParams();
-  const navigate = useNavigate();
+    const { user } = useAuth();
+    const { themeColors } = useCustomization();
+    const { id } = useParams();
+    const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    title: '',
-    propertyType: 'Apartment',
-    status: 'AVAILABLE',
-    monthlyRent: '',
-    availableFrom: '',
-    availableTo: '',
-    address: '',
-    city: '',
-    state: '',
-    amenities: [],
-    categoryId: '',
-  });
-
-  const [images, setImages] = useState([]);
-  const [imagePreviews, setImagePreviews] = useState([]);
-  const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [activeSection, setActiveSection] = useState('basic');
-
-  const accentColor = themeColors?.accentColor || '#D4A574';
-  const successColor = themeColors?.successColor || '#27AE60';
-  const primaryColor = themeColors?.primaryColor || '#667eea';
-  const headingColor = themeColors?.headingColor || '#2d3748';
-  const textColor = themeColors?.textColor || '#4a5568';
-  const bgColor = themeColors?.bgColor || '#f7fafc';
-  const cardBg = themeColors?.scaffoldColor || '#ffffff';
-  const borderColor = themeColors?.textColor ? `${themeColors.textColor}30`
-    : '#e2e8f0';
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: '' }));
-  };
-
-  const AMENITY_OPTIONS = [
-    'WiFi', 'Parking', 'Laundry', 'Pool', 'Gym', 'Elevator',
-    'Air Conditioning', 'Balcony', 'Garden', 'Pet Friendly',
-    'Furnished', 'Security', 'Storage', 'Dishwasher',
-  ];
-
-  const toggleAmenity = (amenityName) => {
-    setFormData((prev) => {
-      const exists = prev.amenities.includes(amenityName);
-      return {
-        ...prev,
-        amenities: exists
-          ? prev.amenities.filter((a) => a !== amenityName)
-          : [...prev.amenities, amenityName],
-      };
+    const [formData, setFormData] = useState({
+        title: '',
+        propertyType: 'Residential',
+        status: 'AVAILABLE',
+        description: '',
+        monthlyRent: '',
+        availableFrom: '',
+        availableTo: '',
+        temporary: false,
+        address: '',
+        city: '',
+        state: '',
+        amenities: [],
+        customAmenities: [],
+        categoryId: '',
+        latitude: null,
+        longitude: null,
     });
-  };
 
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files || []);
-    setImages((prev) => [...prev, ...files]);
-    const previews = files.map((file) => URL.createObjectURL(file));
-    setImagePreviews((prev) => [...prev, ...previews]);
-  };
+    const [images, setImages] = useState([]);
+    const [imagePreviews, setImagePreviews] = useState([]);
+    const [errors, setErrors] = useState({});
+    const [submitting, setSubmitting] = useState(false);
+    const [activeSection, setActiveSection] = useState('basic');
+    const [categories, setCategories] = useState([]);
+    const [categoriesLoading, setCategoriesLoading] = useState(true);
+    const [customAmenityName, setCustomAmenityName] = useState('');
+    const [customAmenityDescription, setCustomAmenityDescription] = useState('');
+    const [showCustomAmenityForm, setShowCustomAmenityForm] = useState(false);
+    const [mapSearch, setMapSearch] = useState('');
+    const [mapSearching, setMapSearching] = useState(false);
+    const [mapMessage, setMapMessage] = useState('');
+    const [mapCenter, setMapCenter] = useState(DEFAULT_MAP_POSITION);
 
-  const handleRemoveImage = (index) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-  };
+    const accentColor = themeColors?.accentColor || '#D4A574';
+    const successColor = themeColors?.successColor || '#27AE60';
+    const primaryColor = themeColors?.primaryColor || '#667eea';
+    const headingColor = themeColors?.headingColor || '#2d3748';
+    const textColor = themeColors?.textColor || '#4a5568';
+    const bgColor = themeColors?.bgColor || '#f7fafc';
+    const cardBg = themeColors?.scaffoldColor || '#ffffff';
+    const borderColor = themeColors?.textColor ? `${themeColors.textColor}30`
+        : '#e2e8f0';
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = 'Property title is required';
-    if (!formData.address.trim()) newErrors.address = 'Address is required';
-    if (!formData.monthlyRent || Number(formData.monthlyRent) <= 0)
-      newErrors.monthlyRent = 'Valid monthly rent is required';
-    if (!formData.city.trim()) newErrors.city = 'City is required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    const today = useMemo(() => new Date().toISOString().split('T')[0], []);
 
-  const handleSubmit = async (e) => {
-    e?.preventDefault?.();
-    if (id) {
-      if (!validateForm()) return;
-    }
-    setSubmitting(true);
-    try {
-      const token = localStorage.getItem('accessToken');
-      const endpoint = id ? `/properties/${id}` : '/properties';
+    useEffect(() => {
+        let cancelled = false;
+        const loadCategories = async () => {
+            try {
+                const token = localStorage.getItem('accessToken');
+                const res = await fetch(`${getApiBaseUrl()}/categories/shared`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error?.message || result.message || 'Failed to load categories');
+                if (!cancelled) setCategories(Array.isArray(result.data) ? result.data : []);
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+                if (!cancelled) {
+                    setCategories([]);
+                    setErrors(prev => ({ ...prev, categoryId: 'Unable to load categories' }));
+                }
+            } finally {
+                if (!cancelled) setCategoriesLoading(false);
+            }
+        };
+        loadCategories();
+        return () => { cancelled = true; };
+    }, []);
 
-      // Build JSON body — align frontend fields to backend DTO (schema source of truth)
-      // Backend service_property.ts handles categoryId internally; do not forward it.
-      const body = {
-        title: formData.title,
-        address: formData.address,
-        property_type: formData.propertyType?.toLowerCase(),
-        rent: parseFloat(formData.monthlyRent) || 0,
-        city: formData.city,
-        state: formData.state,
-        status: formData.status,
-        availableFrom: formData.availableFrom || undefined,
-        availableTo: formData.availableTo || undefined,
-        amenities: formData.amenities?.map?.(a => ({ name: a })) || [],
-      };
 
-      const base = getApiBaseUrl();
-      const res = await fetch(`${base}${endpoint}`, {
-        method: id ? 'PUT' : 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
+    const handleInputChange = (e) => {
+        const { name, value, type, checked } = e.target;
 
-      const result = await res.json();
-
-      if (res.ok) {
-        const createdId = result.data?.id;
-        // Upload images separately via the image endpoint
-        if (createdId && images.length > 0) {
-          for (const img of images) {
-            const imgFD = new FormData();
-            imgFD.append('image', img);
-            await fetch(`${base}/properties/${createdId}/images`, {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}` },
-              body: imgFD,
-            });
-          }
+        if (name === 'temporary') {
+            setFormData(prev => ({ ...prev, temporary: checked, ...(checked ? {} : { availableTo: '' }) }));
+            setErrors(prev => ({ ...prev, availableTo: '' }));
+            return;
         }
-        setTimeout(() => {
-          navigate(getPropertiesRoute(user?.role));
-        }, 800);
-      } else {
-        setErrors({
-          submit: result.error?.message || result.message || 'Failed to save property',
+
+        if (name === 'availableFrom') {
+            setFormData(prev => ({
+                ...prev,
+                availableFrom: value,
+                availableTo: prev.availableTo && value && prev.availableTo < value ? '' : prev.availableTo,
+            }));
+            setErrors(prev => ({ ...prev, availableFrom: '', availableTo: '' }));
+            return;
+        }
+
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        setErrors(prev => ({ ...prev, [name]: '' }));
+    };
+
+    const toggleAmenity = (amenityName) => {
+        setFormData((prev) => {
+            const exists = prev.amenities.includes(amenityName);
+            return {
+                ...prev,
+                amenities: exists
+                    ? prev.amenities.filter((a) => a !== amenityName)
+                    : [...prev.amenities, amenityName],
+            };
         });
-      }
-    } catch (err) {
-      setErrors({ submit: err.message || 'Network error' });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    };
 
-  const handleSaveAndNew = async () => {
-    await handleSubmit();
-    setFormData({
-      title: '',
-      propertyType: 'Apartment',
-      status: 'AVAILABLE',
-      monthlyRent: '',
-      availableFrom: '',
-      availableTo: '',
-      address: '',
-      city: '',
-      state: '',
-      amenities: [],
-      categoryId: '',
-    });
-    setImages([]);
-    setImagePreviews([]);
-  };
+    const addCustomAmenity = () => {
+        const name = customAmenityName.trim();
+        const description = customAmenityDescription.trim();
+        if (!name) {
+            setErrors(prev => ({ ...prev, customAmenity: 'Amenity name is required' }));
+            return;
+        }
+        const duplicate = [...formData.amenities, ...formData.customAmenities.map(a => a.name)]
+            .some(item => item.toLowerCase() === name.toLowerCase());
+        if (duplicate) {
+            setErrors(prev => ({ ...prev, customAmenity: 'An amenity with this name already exists' }));
+            return;
+        }
+        setFormData(prev => ({
+            ...prev,
+            customAmenities: [...prev.customAmenities, { id: `custom-${Date.now()}`, name, description }],
+        }));
+        setCustomAmenityName('');
+        setCustomAmenityDescription('');
+        setShowCustomAmenityForm(false);
+        setErrors(prev => ({ ...prev, customAmenity: '' }));
+    };
 
-  const sectionNav = [
-    { key: 'basic', label: 'Basic Info', icon: LayoutGrid, count: 0 },
-    { key: 'pricing', label: 'Pricing', icon: DollarSign, count: 0 },
-    { key: 'location', label: 'Location', icon: MapPin, count: 0 },
-    { key: 'media', label: 'Images', icon: ImageIcon, count: images.length },
-  ];
+    const removeCustomAmenity = (amenityId) => {
+        setFormData(prev => ({
+            ...prev,
+            customAmenities: prev.customAmenities.filter(item => item.id !== amenityId),
+        }));
+    };
 
-  const inputStyle = {
-    background: cardBg,
-    border: `1px solid ${borderColor}`,
-    borderRadius: '6px',
-    color: headingColor,
-    fontWeight: 400,
-    fontSize: '15px',
-    letterSpacing: '-0.01em',
-    transition: 'border-color 0.2s, box-shadow 0.2s',
-  };
+    const selectMapLocation = (latitude, longitude) => {
+        const lat = Number(latitude);
+        const lng = Number(longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        setFormData(prev => ({ ...prev, latitude: Number(lat.toFixed(7)), longitude: Number(lng.toFixed(7)) }));
+        setMapCenter([lat, lng]);
+        setMapMessage('');
+        setErrors(prev => ({ ...prev, map: '' }));
+    };
 
-  const labelStyle = {
-    color: textColor,
-    fontWeight: 500,
-    fontSize: '13px',
-    letterSpacing: '0.02em',
-    marginBottom: '6px',
-  };
+    const searchAddressOnMap = async () => {
+        const query = mapSearch.trim();
+        if (!query) {
+            setMapMessage('Enter an address to search.');
+            return;
+        }
+        setMapSearching(true);
+        setMapMessage('');
+        try {
+            const res = await fetch(`${NOMINATIM_URL}?format=jsonv2&limit=1&addressdetails=1&q=${encodeURIComponent(query)}`);
+            if (!res.ok) throw new Error('Address search failed.');
+            const results = await res.json();
+            if (!Array.isArray(results) || results.length === 0) {
+                setMapMessage('Address not found. Try a more complete address.');
+                return;
+            }
+            const result = results[0];
+            selectMapLocation(Number(result.lat), Number(result.lon));
+            const address = result.address || {};
+            setFormData(prev => ({
+                ...prev,
+                address: result.display_name || prev.address,
+                city: address.city || address.town || address.municipality || address.village || prev.city,
+                state: address.state || prev.state,
+            }));
+            setMapMessage('Location found. Drag the marker or click the map to adjust it.');
+        } catch (error) {
+            console.error('Map search failed:', error);
+            setMapMessage(error.message || 'Unable to search this address.');
+        } finally {
+            setMapSearching(false);
+        }
+    };
 
-  return (
-    <div
-      className="add-property-page"
-      style={{
-        background: bgColor,
-        minHeight: 'calc(100vh - 80px)',
-        fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-      }}
-    >
-        {/* Page Header */}
+    const handleImageUpload = (e) => {
+        const files = Array.from(e.target.files || []);
+        setImages((prev) => [...prev, ...files]);
+        const previews = files.map((file) => URL.createObjectURL(file));
+        setImagePreviews((prev) => [...prev, ...previews]);
+    };
+
+    const handleRemoveImage = (index) => {
+        setImages((prev) => prev.filter((_, i) => i !== index));
+        setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const validateForm = () => {
+        const newErrors = {};
+        if (!formData.title.trim()) newErrors.title = 'Property title is required';
+        if (!formData.propertyType) newErrors.propertyType = 'Property type is required';
+        if (!formData.categoryId) newErrors.categoryId = 'Category is required';
+        if (!formData.address.trim()) newErrors.address = 'Address is required';
+        if (!formData.city.trim()) newErrors.city = 'City is required';
+        if (!formData.monthlyRent || Number(formData.monthlyRent) <= 0) newErrors.monthlyRent = 'Valid monthly rent is required';
+        if (formData.availableFrom && formData.availableFrom < today) newErrors.availableFrom = 'Available From cannot be earlier than today';
+        if (formData.temporary) {
+            if (!formData.availableTo) newErrors.availableTo = 'Available To is required for temporary properties';
+            else if (formData.availableFrom && formData.availableTo < formData.availableFrom) newErrors.availableTo = 'Available To cannot be earlier than Available From';
+        }
+        const hasLat = formData.latitude !== null && formData.latitude !== undefined;
+        const hasLng = formData.longitude !== null && formData.longitude !== undefined;
+        if (hasLat !== hasLng) newErrors.map = 'Please select a complete map location.';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSubmit = async (e) => {
+        e?.preventDefault?.();
+        if (!validateForm()) return;
+        setSubmitting(true);
+        try {
+            const token = localStorage.getItem('accessToken');
+            const endpoint = id ? `/properties/${id}` : '/properties';
+
+            // Build JSON body — align frontend fields to backend DTO (schema source of truth)
+            // Backend service_property.ts handles categoryId internally; do not forward it.
+            const body = {
+                title: formData.title.trim(),
+                description: formData.description.trim() || null,
+                address: formData.address.trim(),
+                property_type: formData.propertyType.toLowerCase(),
+                categoryId: formData.categoryId,
+                rent: parseFloat(formData.monthlyRent) || 0,
+                city: formData.city.trim(),
+                state: formData.state.trim(),
+                status: formData.status,
+                availableFrom: formData.availableFrom || undefined,
+                availableTo: formData.temporary ? (formData.availableTo || undefined) : null,
+                latitude: formData.latitude !== null ? Number(formData.latitude) : null,
+                longitude: formData.longitude !== null ? Number(formData.longitude) : null,
+                amenities: [
+                    ...formData.amenities.map(name => ({ name, description: null })),
+                    ...formData.customAmenities.map(item => ({ name: item.name, description: item.description || null })),
+                ],
+            };
+
+            const base = getApiBaseUrl();
+            const res = await fetch(`${base}${endpoint}`, {
+                method: id ? 'PUT' : 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+
+            const result = await res.json();
+
+            if (res.ok) {
+                const createdId = result.data?.id;
+                // Upload images separately via the image endpoint
+                if (createdId && images.length > 0) {
+                    for (const img of images) {
+                        const imgFD = new FormData();
+                        imgFD.append('image', img);
+                        await fetch(`${base}/properties/${createdId}/images`, {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${token}` },
+                            body: imgFD,
+                        });
+                    }
+                }
+                setTimeout(() => {
+                    navigate(getPropertyRoute(user?.role));
+                }, 800);
+            } else {
+                setErrors({
+                    submit: result.error?.message || result.message || 'Failed to save property',
+                });
+            }
+        } catch (err) {
+            setErrors({ submit: err.message || 'Network error' });
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleSaveAndNew = async () => {
+        await handleSubmit();
+        setFormData({
+            title: '',
+            propertyType: 'Residential',
+            status: 'AVAILABLE',
+            description: '',
+            monthlyRent: '',
+            availableFrom: '',
+            availableTo: '',
+            temporary: false,
+            address: '',
+            city: '',
+            state: '',
+            amenities: [],
+            customAmenities: [],
+            categoryId: '',
+            latitude: null,
+            longitude: null,
+        });
+        setImages([]);
+        setImagePreviews([]);
+    };
+
+    const sectionNav = [
+        { key: 'basic', label: 'Basic Info', icon: LayoutGrid, count: 0 },
+        { key: 'pricing', label: 'Pricing', icon: DollarSign, count: 0 },
+        { key: 'location', label: 'Location', icon: MapPin, count: 0 },
+        { key: 'media', label: 'Images', icon: ImageIcon, count: images.length },
+    ];
+
+    const inputStyle = {
+        background: cardBg,
+        border: `1px solid ${borderColor}`,
+        borderRadius: '6px',
+        color: headingColor,
+        fontWeight: 400,
+        fontSize: '15px',
+        letterSpacing: '-0.01em',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+    };
+
+    const labelStyle = {
+        color: textColor,
+        fontWeight: 500,
+        fontSize: '13px',
+        letterSpacing: '0.02em',
+        marginBottom: '6px',
+    };
+
+    return (
         <div
-          className="add-property-header"
-          style={{
-            background: cardBg,
-            borderBottom: `1px solid ${borderColor}`,
-            padding: '16px 24px',
-            position: 'sticky',
-            top: 68,
-            zIndex: 50,
-            backdropFilter: 'saturate(180%) blur(8px)',
-          }}
-        >
-          <div
-            className="header-inner"
+            className="add-property-page"
             style={{
-              maxWidth: '1200px',
-              margin: '0 auto',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+                background: bgColor,
+                minHeight: 'calc(100vh - 80px)',
+                fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
             }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <button
-                onClick={() => navigate(getPropertyRoute(user?.role))}
-                style={{
-                  background: `${textColor}10`,
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '8px',
-                  color: textColor,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <ArrowLeft size={16} />
-              </button>
-              <div>
-                <h1
-                  className="page-title"
-                  style={{
-                    fontSize: '20px',
-                    fontWeight: 600,
-                    letterSpacing: '-0.03em',
-                    color: headingColor,
-                    margin: 0,
-                  }}
-                >
-                  {id ? 'Edit Property' : 'Add New Property'}
-                </h1>
-                <p
-                  className="page-subtitle"
-                  style={{
-                    fontSize: '13px',
-                    color: textColor,
-                    margin: 0,
-                    opacity: 0.7,
-                  }}
-                >
-                  {id ? 'Update your property listing details' : 'Fill in the details for your new property listing'}
-                </p>
-              </div>
-
-              <button
-                className="btn btn-primary"
-                onClick={handleSubmit}
-                disabled={submitting}
-                style={{
-                  background: primaryColor,
-                  color: '#fff',
-                  padding: '8px 20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: '6px',
-                }}
-              >
-                <Save size={15} />
-                {submitting ? 'Saving...' : 'Save & Publish'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Section Navigation */}
-        <div
-          className="section-nav"
-          style={{
-            maxWidth: '1200px',
-            margin: '0 auto',
-            padding: '16px 24px',
-            display: 'flex',
-            gap: '4px',
-            overflowX: 'auto',
-          }}
         >
-          {sectionNav.map((section) => {
-            const Icon = section.icon;
-            const isActive = activeSection === section.key;
-            return (
-              <button
-                key={section.key}
-                onClick={() => {
-                  setActiveSection(section.key);
-                  document
-                    .getElementById(`section-${section.key}`)
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-                style={{
-                  background: isActive ? `${primaryColor}12` : 'transparent',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '10px 18px',
-                  color: isActive ? primaryColor : textColor,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  fontSize: '13px',
-                  fontWeight: isActive ? 600 : 500,
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <Icon size={16} />
-                {section.label}
-                {section.count > 0 && (
-                  <span
-                    style={{
-                      background: `${primaryColor}20`,
-                      color: primaryColor,
-                      borderRadius: '999px',
-                      padding: '1px 8px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {section.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Form Content */}
-        <form onSubmit={handleSubmit} className="add-property-form" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px 60px' }}>
-          {/* Error Banner */}
-          {errors.submit && (
+            {/* Page Header */}
             <div
-              className="error-banner"
-              style={{
-                background: '#fff5f5',
-                border: '1px solid #fed7d7',
-                borderRadius: '8px',
-                padding: '14px 18px',
-                marginBottom: '20px',
-                color: '#c53030',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}
-            >
-              <X size={16} />
-              {errors.submit}
-            </div>
-          )}
-
-          {/* ---- BASIC INFO SECTION ---- */}
-          <div id="section-basic" className="form-section" style={{ marginBottom: '20px' }}>
-            <div
-              className="section-card"
-              style={{
-                background: cardBg,
-                borderRadius: '12px',
-                border: `1px solid ${borderColor}`,
-                overflow: 'hidden',
-                boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 3px',
-              }}
-            >
-              {/* Section Header */}
-              <div
-                className="section-header"
+                className="add-property-header"
                 style={{
-                  padding: '20px 24px',
-                  borderBottom: `1px solid ${borderColor}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
+                    background: cardBg,
+                    borderBottom: `1px solid ${borderColor}`,
+                    padding: '16px 24px',
+                    position: 'sticky',
+                    top: 68,
+                    zIndex: 50,
+                    backdropFilter: 'saturate(180%) blur(8px)',
                 }}
-              >
+            >
                 <div
-                  style={{
-                    background: `${primaryColor}12`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: primaryColor,
-                    display: 'flex',
-                  }}
-                >
-                  <LayoutGrid size={18} />
-                </div>
-                <div>
-                  <h2
+                    className="header-inner"
                     style={{
-                      fontSize: '15px',
-                      fontWeight: 600,
-                      color: headingColor,
-                      margin: 0,
-                      letterSpacing: '-0.02em',
-                    }}
-                  >
-                    Basic Information
-                  </h2>
-                  <p
-                    style={{
-                      fontSize: '12px',
-                      color: textColor,
-                      margin: 0,
-                      opacity: 0.6,
-                    }}
-                  >
-                    Core details about your property
-                  </p>
-                </div>
-              </div>
-
-              <div className="section-body" style={{ padding: '24px' }}>
-                {/* Title & Type Row */}
-                <div
-                  className="form-grid"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 200px',
-                    gap: '16px',
-                    marginBottom: '16px',
-                  }}
-                >
-                  <div className="form-group">
-                    <label style={labelStyle}>Property Title <span style={{ color: '#e53e3e' }}>*</span></label>
-                    <input
-                      type="text"
-                      name="title"
-                      placeholder="e.g. Modern Downtown Apartment"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                      className={errors.title ? 'input-error' : ''}
-                      style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
-                    />
-                    {errors.title && (
-                      <span className="field-error" style={{ color: '#e53e3e', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                        {errors.title}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label style={labelStyle}>Property Type</label>
-                    <select
-                      name="propertyType"
-                      value={formData.propertyType}
-                      onChange={handleInputChange}
-                      style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none', appearance: 'none', paddingRight: '32px', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(textColor)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
-                    >
-                      {PROPERTY_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Description — removed: not in Property model */}
-
-                {/* Status, Category, Amenities Row */}
-                <div
-                  className="form-grid"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 1fr',
-                    gap: '16px',
-                  }}
-                >
-                  <div className="form-group">
-                    <label style={labelStyle}>Status</label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
-                    >
-                      {PROPERTY_STATUS.map((s) => (
-                        <option key={s} value={s}>
-                          {s.charAt(0) + s.slice(1).toLowerCase()}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label style={labelStyle}>Category</label>
-                    <select
-                      name="categoryId"
-                      value={formData.categoryId}
-                      onChange={handleInputChange}
-                      style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
-                    >
-                      <option value="">Select category</option>
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label style={labelStyle}>Amenities</label>
-                    <div
-                      style={{
-                        ...inputStyle,
-                        padding: '10px 14px',
+                        maxWidth: '1200px',
+                        margin: '0 auto',
                         display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '6px',
-                        minHeight: '42px',
-                      }}
-                    >
-                      {AMENITY_OPTIONS.map((a) => (
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <button
-                          type="button"
-                          key={a}
-                          onClick={() => toggleAmenity(a)}
-                          style={{
-                            background: formData.amenities.includes(a)
-                              ? primaryColor
-                              : 'transparent',
-                            border: `1px solid ${formData.amenities.includes(a) ? primaryColor : borderColor}`,
-                            color: formData.amenities.includes(a) ? '#fff' : textColor,
-                            borderRadius: '4px',
-                            padding: '3px 10px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            fontWeight: formData.amenities.includes(a) ? 600 : 400,
-                            transition: 'all 0.15s',
-                          }}
+                            onClick={() => navigate(getPropertyRoute(user?.role))}
+                            style={{
+                                background: `${textColor}10`,
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '8px',
+                                color: textColor,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                            }}
                         >
-                          {a}
+                            <ArrowLeft size={16} />
                         </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                        <div>
+                            <h1
+                                className="page-title"
+                                style={{
+                                    fontSize: '20px',
+                                    fontWeight: 600,
+                                    letterSpacing: '-0.03em',
+                                    color: headingColor,
+                                    margin: 0,
+                                }}
+                            >
+                                {id ? 'Edit Property' : 'Add New Property'}
+                            </h1>
+                            <p
+                                className="page-subtitle"
+                                style={{
+                                    fontSize: '13px',
+                                    color: textColor,
+                                    margin: 0,
+                                    opacity: 0.7,
+                                }}
+                            >
+                                {id ? 'Update your property listing details' : 'Fill in the details for your new property listing'}
+                            </p>
+                        </div>
 
-          {/* ---- PRICING SECTION ---- */}
-          <div id="section-pricing" className="form-section" style={{ marginBottom: '20px' }}>
-            <div
-              className="section-card"
-              style={{
-                background: cardBg,
-                borderRadius: '12px',
-                border: `1px solid ${borderColor}`,
-                overflow: 'hidden',
-                boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 3px',
-              }}
-            >
-              <div
-                className="section-header"
-                style={{
-                  padding: '20px 24px',
-                  borderBottom: `1px solid ${borderColor}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}
-              >
-                <div
-                  style={{
-                    background: `${successColor}12`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: successColor,
-                    display: 'flex',
-                  }}
-                >
-                  <DollarSign size={18} />
-                </div>
-                <div>
-                  <h2 style={{ fontSize: '15px', fontWeight: 600, color: headingColor, margin: 0, letterSpacing: '-0.02em' }}>
-                    Pricing & Details
-                  </h2>
-                  <p style={{ fontSize: '12px', color: textColor, margin: 0, opacity: 0.6 }}>
-                    Rental price and availability period
-                  </p>
-                </div>
-              </div>
-
-              <div className="section-body" style={{ padding: '24px' }}>
-                {/* Rent — only price field in Property model */}
-                <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <label style={labelStyle}>Monthly Rent ($) <span style={{ color: '#e53e3e' }}>*</span></label>
-                  <div style={{ position: 'relative' }}>
-                    <span
-                      style={{
-                        position: 'absolute',
-                        left: '14px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: successColor,
-                        fontWeight: 600,
-                        fontSize: '15px',
-                      }}
-                    >
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      name="monthlyRent"
-                      placeholder="0.00"
-                      value={formData.monthlyRent}
-                      onChange={handleInputChange}
-                      className={errors.monthlyRent ? 'input-error' : ''}
-                      min="0"
-                      step="0.01"
-                      style={{
-                        ...inputStyle,
-                        width: '100%',
-                        padding: '10px 14px 10px 32px',
-                        outline: 'none',
-                        fontVariantNumeric: 'tabular-nums',
-                      }}
-                    />
-                  </div>
-                  {errors.monthlyRent && (
-                    <span className="field-error" style={{ color: '#e53e3e', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                      {errors.monthlyRent}
-                    </span>
-                  )}
-                </div>
-
-                {/* Available From / To Row — both in Property model */}
-                <div
-                  className="form-grid"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '16px',
-                  }}
-                >
-                  <div className="form-group">
-                    <label style={labelStyle}>Available From</label>
-                    <input
-                      type="date"
-                      name="availableFrom"
-                      value={formData.availableFrom}
-                      onChange={handleInputChange}
-                      style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label style={labelStyle}>Available To</label>
-                    <input
-                      type="date"
-                      name="availableTo"
-                      value={formData.availableTo}
-                      onChange={handleInputChange}
-                      style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ---- LOCATION SECTION ---- */}
-          <div id="section-location" className="form-section" style={{ marginBottom: '20px' }}>
-            <div
-              className="section-card"
-              style={{
-                background: cardBg,
-                borderRadius: '12px',
-                border: `1px solid ${borderColor}`,
-                overflow: 'hidden',
-                boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 3px',
-              }}
-            >
-              <div
-                className="section-header"
-                style={{
-                  padding: '20px 24px',
-                  borderBottom: `1px solid ${borderColor}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}
-              >
-                <div
-                  style={{
-                    background: `${accentColor}14`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: accentColor,
-                    display: 'flex',
-                  }}
-                >
-                  <MapPin size={18} />
-                </div>
-                <div>
-                  <h2 style={{ fontSize: '15px', fontWeight: 600, color: headingColor, margin: 0, letterSpacing: '-0.02em' }}>
-                    Location
-                  </h2>
-                  <p style={{ fontSize: '12px', color: textColor, margin: 0, opacity: 0.6 }}>
-                    Where your property is located
-                  </p>
-                </div>
-              </div>
-
-              <div className="section-body" style={{ padding: '24px' }}>
-                {/* Address */}
-                <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <label style={labelStyle}>Street Address <span style={{ color: '#e53e3e' }}>*</span></label>
-                  <input
-                    type="text"
-                    name="address"
-                    placeholder="Full street address with number"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    className={errors.address ? 'input-error' : ''}
-                    style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
-                  />
-                  {errors.address && (
-                    <span className="field-error" style={{ color: '#e53e3e', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                      {errors.address}
-                    </span>
-                  )}
-                </div>
-
-                {/* City, State Row — only location fields in Property model besides address */}
-                <div
-                  className="form-grid"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '16px',
-                  }}
-                >
-                  <div className="form-group">
-                    <label style={labelStyle}>City <span style={{ color: '#e53e3e' }}>*</span></label>
-                    <input
-                      type="text"
-                      name="city"
-                      placeholder="City name"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                      className={errors.city ? 'input-error' : ''}
-                      style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
-                    />
-                    {errors.city && (
-                      <span className="field-error" style={{ color: '#e53e3e', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                        {errors.city}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label style={labelStyle}>State / Province</label>
-                    <input
-                      type="text"
-                      name="state"
-                      placeholder="State or province"
-                      value={formData.state}
-                      onChange={handleInputChange}
-                      style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ---- IMAGES SECTION ---- */}
-          <div id="section-media" className="form-section">
-            <div
-              className="section-card"
-              style={{
-                background: cardBg,
-                borderRadius: '12px',
-                border: `1px solid ${borderColor}`,
-                overflow: 'hidden',
-                boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 3px',
-              }}
-            >
-              <div
-                className="section-header"
-                style={{
-                  padding: '20px 24px',
-                  borderBottom: `1px solid ${borderColor}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}
-              >
-                <div
-                  style={{
-                    background: `${accentColor}14`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: accentColor,
-                    display: 'flex',
-                  }}
-                >
-                  <ImageIcon size={18} />
-                </div>
-                <div>
-                  <h2 style={{ fontSize: '15px', fontWeight: 600, color: headingColor, margin: 0, letterSpacing: '-0.02em' }}>
-                    Property Images
-                  </h2>
-                  <p style={{ fontSize: '12px', color: textColor, margin: 0, opacity: 0.6 }}>
-                    Upload high-quality photos to showcase your property
-                  </p>
-                </div>
-              </div>
-
-              <div className="section-body" style={{ padding: '24px' }}>
-                {/* Upload Zone */}
-                <label
-                  className="image-upload-zone"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: `2px dashed ${borderColor}`,
-                    borderRadius: '12px',
-                    padding: '48px 24px',
-                    cursor: 'pointer',
-                    background: `${textColor}04`,
-                    transition: 'border-color 0.2s, background 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = primaryColor + '60';
-                    e.currentTarget.style.background = `${primaryColor}08`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = borderColor;
-                    e.currentTarget.style.background = `${textColor}04`;
-                  }}
-                >
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    style={{ display: 'none' }}
-                  />
-                  <div
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      background: `${primaryColor}12`,
-                      color: primaryColor,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: '16px',
-                    }}
-                  >
-                    <Upload size={22} />
-                  </div>
-                  <p
-                    style={{
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: headingColor,
-                      margin: '0 0 4px',
-                    }}
-                  >
-                    Click to upload or drag and drop
-                  </p>
-                  <p
-                    style={{
-                      fontSize: '12px',
-                      color: textColor,
-                      margin: 0,
-                      opacity: 0.5,
-                    }}
-                  >
-                    PNG, JPG or WebP up to 10MB each
-                  </p>
-                </label>
-
-                {/* Image Previews */}
-                {imagePreviews.length > 0 && (
-                  <div
-                    className="image-preview-grid"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                      gap: '12px',
-                      marginTop: '20px',
-                    }}
-                  >
-                    {imagePreviews.map((preview, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          position: 'relative',
-                          aspectRatio: '4/3',
-                          borderRadius: '8px',
-                          overflow: 'hidden',
-                          border: `1px solid ${borderColor}`,
-                        }}
-                      >
-                        <img
-                          src={preview}
-                          alt={`Property image ${index + 1}`}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            display: 'block',
-                          }}
-                        />
                         <button
-                          onClick={() => handleRemoveImage(index)}
-                          style={{
-                            position: 'absolute',
-                            top: '6px',
-                            right: '6px',
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.6)',
-                            color: '#fff',
-                            border: 'none',
-                            cursor: 'pointer',
+                            className="btn btn-primary"
+                            onClick={handleSubmit}
+                            disabled={submitting}
+                            style={{
+                                background: primaryColor,
+                                color: '#fff',
+                                padding: '8px 20px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                border: 'none',
+                                borderRadius: '6px',
+                            }}
+                        >
+                            <Save size={15} />
+                            {submitting ? 'Saving...' : 'Save & Publish'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Section Navigation */}
+            <div
+                className="section-nav"
+                style={{
+                    maxWidth: '1200px',
+                    margin: '0 auto',
+                    padding: '16px 24px',
+                    display: 'flex',
+                    gap: '4px',
+                    overflowX: 'auto',
+                }}
+            >
+                {sectionNav.map((section) => {
+                    const Icon = section.icon;
+                    const isActive = activeSection === section.key;
+                    return (
+                        <button
+                            key={section.key}
+                            onClick={() => {
+                                setActiveSection(section.key);
+                                document
+                                    .getElementById(`section-${section.key}`)
+                                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }}
+                            style={{
+                                background: isActive ? `${primaryColor}12` : 'transparent',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '10px 18px',
+                                color: isActive ? primaryColor : textColor,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                fontSize: '13px',
+                                fontWeight: isActive ? 600 : 500,
+                                transition: 'all 0.2s',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            <Icon size={16} />
+                            {section.label}
+                            {section.count > 0 && (
+                                <span
+                                    style={{
+                                        background: `${primaryColor}20`,
+                                        color: primaryColor,
+                                        borderRadius: '999px',
+                                        padding: '1px 8px',
+                                        fontSize: '11px',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {section.count}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Form Content */}
+            <form onSubmit={handleSubmit} className="add-property-form" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px 60px' }}>
+                {/* Error Banner */}
+                {errors.submit && (
+                    <div
+                        className="error-banner"
+                        style={{
+                            background: '#fff5f5',
+                            border: '1px solid #fed7d7',
+                            borderRadius: '8px',
+                            padding: '14px 18px',
+                            marginBottom: '20px',
+                            color: '#c53030',
+                            fontSize: '14px',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '12px',
-                          }}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                            gap: '10px',
+                        }}
+                    >
+                        <X size={16} />
+                        {errors.submit}
+                    </div>
                 )}
-              </div>
-            </div>
-          </div>
-        </form>
-      </div>
-  );
+
+                {/* ---- BASIC INFO SECTION ---- */}
+                <div id="section-basic" className="form-section" style={{ marginBottom: '20px' }}>
+                    <div
+                        className="section-card"
+                        style={{
+                            background: cardBg,
+                            borderRadius: '12px',
+                            border: `1px solid ${borderColor}`,
+                            overflow: 'hidden',
+                            boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 3px',
+                        }}
+                    >
+                        {/* Section Header */}
+                        <div
+                            className="section-header"
+                            style={{
+                                padding: '20px 24px',
+                                borderBottom: `1px solid ${borderColor}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    background: `${primaryColor}12`,
+                                    borderRadius: '8px',
+                                    padding: '8px',
+                                    color: primaryColor,
+                                    display: 'flex',
+                                }}
+                            >
+                                <LayoutGrid size={18} />
+                            </div>
+                            <div>
+                                <h2
+                                    style={{
+                                        fontSize: '15px',
+                                        fontWeight: 600,
+                                        color: headingColor,
+                                        margin: 0,
+                                        letterSpacing: '-0.02em',
+                                    }}
+                                >
+                                    Basic Information
+                                </h2>
+                                <p
+                                    style={{
+                                        fontSize: '12px',
+                                        color: textColor,
+                                        margin: 0,
+                                        opacity: 0.6,
+                                    }}
+                                >
+                                    Core details about your property
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="section-body" style={{ padding: '24px' }}>
+                            {/* Title & Type Row */}
+                            <div
+                                className="form-grid"
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 200px',
+                                    gap: '16px',
+                                    marginBottom: '16px',
+                                }}
+                            >
+                                <div className="form-group">
+                                    <label style={labelStyle}>Property Title <span style={{ color: '#e53e3e' }}>*</span></label>
+                                    <input
+                                        type="text"
+                                        name="title"
+                                        placeholder="e.g. Modern Downtown Apartment"
+                                        value={formData.title}
+                                        onChange={handleInputChange}
+                                        className={errors.title ? 'input-error' : ''}
+                                        style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
+                                    />
+                                    {errors.title && (
+                                        <span className="field-error" style={{ color: '#e53e3e', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                                            {errors.title}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="form-group">
+                                    <label style={labelStyle}>Property Type</label>
+                                    <select
+                                        name="propertyType"
+                                        value={formData.propertyType}
+                                        onChange={handleInputChange}
+                                        style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none', appearance: 'none', paddingRight: '32px', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(textColor)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+                                    >
+                                        {PROPERTY_TYPES.map((t) => (
+                                            <option key={t} value={t}>
+                                                {t}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label style={labelStyle}>Description</label>
+                                <textarea
+                                    name="description"
+                                    value={formData.description}
+                                    onChange={handleInputChange}
+                                    placeholder="Describe the property..."
+                                    rows={5}
+                                    style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none', resize: 'vertical', minHeight: '120px', fontFamily: 'inherit', lineHeight: 1.5 }}
+                                />
+                            </div>
+
+                            {/* Status, Category, Amenities Row */}
+                            <div
+                                className="form-grid"
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr 1fr',
+                                    gap: '16px',
+                                }}
+                            >
+                                <div className="form-group">
+                                    <label style={labelStyle}>Status</label>
+                                    <select
+                                        name="status"
+                                        value={formData.status}
+                                        onChange={handleInputChange}
+                                        style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
+                                    >
+                                        {PROPERTY_STATUS.map((s) => (
+                                            <option key={s} value={s}>
+                                                {s.charAt(0) + s.slice(1).toLowerCase()}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="form-group">
+                                    <label style={labelStyle}>Category <span style={{ color: '#e53e3e' }}>*</span></label>
+                                    <select
+                                        name="categoryId"
+                                        value={formData.categoryId}
+                                        onChange={handleInputChange}
+                                        disabled={categoriesLoading}
+                                        className={errors.categoryId ? 'input-error' : ''}
+                                        style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none', opacity: categoriesLoading ? 0.7 : 1 }}
+                                    >
+                                        <option value="">{categoriesLoading ? 'Loading categories...' : 'Select category'}</option>
+                                        {categories.map((category) => (
+                                            <option key={category.id} value={category.id}>{category.name}</option>
+                                        ))}
+                                    </select>
+                                    {errors.categoryId && <span className="field-error">{errors.categoryId}</span>}
+                                </div>
+
+                                <div className="form-group">
+                                    <label style={labelStyle}>Amenities</label>
+                                    <div
+                                        style={{
+                                            ...inputStyle,
+                                            padding: '10px 14px',
+                                            display: 'flex',
+                                            flexWrap: 'wrap',
+                                            gap: '6px',
+                                            minHeight: '42px',
+                                        }}
+                                    >
+                                        {AMENITY_OPTIONS.map((a) => (
+                                            <button
+                                                type="button"
+                                                key={a}
+                                                onClick={() => toggleAmenity(a)}
+                                                style={{
+                                                    background: formData.amenities.includes(a)
+                                                        ? primaryColor
+                                                        : 'transparent',
+                                                    border: `1px solid ${formData.amenities.includes(a) ? primaryColor : borderColor}`,
+                                                    color: formData.amenities.includes(a) ? '#fff' : textColor,
+                                                    borderRadius: '4px',
+                                                    padding: '3px 10px',
+                                                    cursor: 'pointer',
+                                                    fontSize: '12px',
+                                                    fontWeight: formData.amenities.includes(a) ? 600 : 400,
+                                                    transition: 'all 0.15s',
+                                                }}
+                                            >
+                                                {a}
+                                            </button>
+                                        ))}
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCustomAmenityForm(prev => !prev)}
+                                            style={{ background: 'transparent', border: `1px dashed ${primaryColor}`, color: primaryColor, borderRadius: '4px', padding: '3px 10px', cursor: 'pointer', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                        >
+                                            <Plus size={13} /> Add Amenity
+                                        </button>
+                                    </div>
+
+                                    {formData.customAmenities.map((amenity) => (
+                                        <div key={amenity.id} style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: `1px solid ${borderColor}`, borderRadius: '6px', padding: '8px 10px' }}>
+                                            <div>
+                                                <strong style={{ color: headingColor, fontSize: '13px' }}>{amenity.name}</strong>
+                                                {amenity.description && <div style={{ color: textColor, fontSize: '12px', marginTop: '2px' }}>{amenity.description}</div>}
+                                            </div>
+                                            <button type="button" onClick={() => removeCustomAmenity(amenity.id)} style={{ border: 'none', background: 'transparent', color: '#e53e3e', cursor: 'pointer', display: 'flex' }}><Trash2 size={15} /></button>
+                                        </div>
+                                    ))}
+
+                                    {showCustomAmenityForm && (
+                                        <div style={{ marginTop: '8px', padding: '12px', border: `1px solid ${borderColor}`, borderRadius: '8px', display: 'grid', gap: '8px' }}>
+                                            <input type="text" placeholder="Amenity name" value={customAmenityName} onChange={e => setCustomAmenityName(e.target.value)} style={{ ...inputStyle, width: '100%', padding: '9px 12px', outline: 'none' }} />
+                                            <input type="text" placeholder="Description (optional)" value={customAmenityDescription} onChange={e => setCustomAmenityDescription(e.target.value)} style={{ ...inputStyle, width: '100%', padding: '9px 12px', outline: 'none' }} />
+                                            {errors.customAmenity && <span className="field-error">{errors.customAmenity}</span>}
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                                <button type="button" onClick={() => setShowCustomAmenityForm(false)} style={{ padding: '7px 12px', border: `1px solid ${borderColor}`, borderRadius: '6px', background: 'transparent', color: textColor, cursor: 'pointer' }}>Cancel</button>
+                                                <button type="button" onClick={addCustomAmenity} style={{ padding: '7px 12px', border: 'none', borderRadius: '6px', background: primaryColor, color: '#fff', cursor: 'pointer' }}>Add</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ---- PRICING SECTION ---- */}
+                <div id="section-pricing" className="form-section" style={{ marginBottom: '20px' }}>
+                    <div
+                        className="section-card"
+                        style={{
+                            background: cardBg,
+                            borderRadius: '12px',
+                            border: `1px solid ${borderColor}`,
+                            overflow: 'hidden',
+                            boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 3px',
+                        }}
+                    >
+                        <div
+                            className="section-header"
+                            style={{
+                                padding: '20px 24px',
+                                borderBottom: `1px solid ${borderColor}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    background: `${successColor}12`,
+                                    borderRadius: '8px',
+                                    padding: '8px',
+                                    color: successColor,
+                                    display: 'flex',
+                                }}
+                            >
+                                <DollarSign size={18} />
+                            </div>
+                            <div>
+                                <h2 style={{ fontSize: '15px', fontWeight: 600, color: headingColor, margin: 0, letterSpacing: '-0.02em' }}>
+                                    Pricing & Details
+                                </h2>
+                                <p style={{ fontSize: '12px', color: textColor, margin: 0, opacity: 0.6 }}>
+                                    Rental price and availability period
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="section-body" style={{ padding: '24px' }}>
+                            {/* Rent — only price field in Property model */}
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label style={labelStyle}>Monthly Rent <span style={{ color: '#e53e3e' }}>*</span></label>
+                                <div style={{ position: 'relative' }}>
+                                    <span
+                                        style={{
+                                            position: 'absolute',
+                                            left: '14px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            color: successColor,
+                                            fontWeight: 600,
+                                            fontSize: '15px',
+                                        }}
+                                    >
+                                        $
+                                    </span>
+                                    <input
+                                        type="number"
+                                        name="monthlyRent"
+                                        placeholder="0.00"
+                                        value={formData.monthlyRent}
+                                        onChange={handleInputChange}
+                                        className={errors.monthlyRent ? 'input-error' : ''}
+                                        min="0"
+                                        step="0.01"
+                                        style={{
+                                            ...inputStyle,
+                                            width: '100%',
+                                            padding: '10px 14px',
+                                            outline: 'none',
+                                            fontVariantNumeric: 'tabular-nums',
+                                        }}
+                                    />
+                                </div>
+                                {errors.monthlyRent && (
+                                    <span className="field-error" style={{ color: '#e53e3e', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                                        {errors.monthlyRent}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="form-group">
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                    <label style={{ ...labelStyle, marginBottom: 0 }}>Available From</label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '7px', color: textColor, fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
+                                        <input type="checkbox" name="temporary" checked={formData.temporary} onChange={handleInputChange} style={{ width: '15px', height: '15px', accentColor: primaryColor }} />
+                                        Temporary
+                                    </label>
+                                </div>
+                                <input type="date" name="availableFrom" value={formData.availableFrom} min={today} onChange={handleInputChange} className={errors.availableFrom ? 'input-error' : ''} style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }} />
+                                {errors.availableFrom && <span className="field-error">{errors.availableFrom}</span>}
+                            </div>
+
+                            {formData.temporary && (
+                                <div className="form-group" style={{ marginTop: '16px' }}>
+                                    <label style={labelStyle}>Available To <span style={{ color: '#e53e3e' }}>*</span></label>
+                                    <input type="date" name="availableTo" value={formData.availableTo} min={formData.availableFrom || today} onChange={handleInputChange} className={errors.availableTo ? 'input-error' : ''} style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }} />
+                                    {errors.availableTo && <span className="field-error">{errors.availableTo}</span>}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ---- LOCATION SECTION ---- */}
+                <div id="section-location" className="form-section" style={{ marginBottom: '20px' }}>
+                    <div
+                        className="section-card"
+                        style={{
+                            background: cardBg,
+                            borderRadius: '12px',
+                            border: `1px solid ${borderColor}`,
+                            overflow: 'hidden',
+                            boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 3px',
+                        }}
+                    >
+                        <div
+                            className="section-header"
+                            style={{
+                                padding: '20px 24px',
+                                borderBottom: `1px solid ${borderColor}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    background: `${accentColor}14`,
+                                    borderRadius: '8px',
+                                    padding: '8px',
+                                    color: accentColor,
+                                    display: 'flex',
+                                }}
+                            >
+                                <MapPin size={18} />
+                            </div>
+                            <div>
+                                <h2 style={{ fontSize: '15px', fontWeight: 600, color: headingColor, margin: 0, letterSpacing: '-0.02em' }}>
+                                    Location
+                                </h2>
+                                <p style={{ fontSize: '12px', color: textColor, margin: 0, opacity: 0.6 }}>
+                                    Where your property is located
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="section-body" style={{ padding: '24px' }}>
+                            {/* Address */}
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label style={labelStyle}>Street Address <span style={{ color: '#e53e3e' }}>*</span></label>
+                                <input
+                                    type="text"
+                                    name="address"
+                                    placeholder="Full street address with number"
+                                    value={formData.address}
+                                    onChange={handleInputChange}
+                                    className={errors.address ? 'input-error' : ''}
+                                    style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
+                                />
+                                {errors.address && (
+                                    <span className="field-error" style={{ color: '#e53e3e', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                                        {errors.address}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* City, State Row — only location fields in Property model besides address */}
+                            <div
+                                className="form-grid"
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: '16px',
+                                }}
+                            >
+                                <div className="form-group">
+                                    <label style={labelStyle}>City <span style={{ color: '#e53e3e' }}>*</span></label>
+                                    <input
+                                        type="text"
+                                        name="city"
+                                        placeholder="City name"
+                                        value={formData.city}
+                                        onChange={handleInputChange}
+                                        className={errors.city ? 'input-error' : ''}
+                                        style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
+                                    />
+                                    {errors.city && (
+                                        <span className="field-error" style={{ color: '#e53e3e', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                                            {errors.city}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="form-group">
+                                    <label style={labelStyle}>State / Province</label>
+                                    <input
+                                        type="text"
+                                        name="state"
+                                        placeholder="State or province"
+                                        value={formData.state}
+                                        onChange={handleInputChange}
+                                        style={{ ...inputStyle, width: '100%', padding: '10px 14px', outline: 'none' }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="map-search-row" style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                                <input type="text" value={mapSearch} onChange={e => setMapSearch(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchAddressOnMap(); } }} placeholder="Search address on map..." style={{ ...inputStyle, flex: 1, padding: '10px 14px', outline: 'none' }} />
+                                <button type="button" onClick={searchAddressOnMap} disabled={mapSearching} style={{ background: primaryColor, color: '#fff', border: 'none', borderRadius: '6px', padding: '10px 16px', display: 'inline-flex', alignItems: 'center', gap: '7px', cursor: mapSearching ? 'not-allowed' : 'pointer', opacity: mapSearching ? 0.7 : 1 }}>
+                                    {mapSearching ? <Loader2 size={15} className="map-spinner" /> : <Search size={15} />}
+                                    {mapSearching ? 'Searching...' : 'Locate'}
+                                </button>
+                            </div>
+
+                            <p style={{ color: textColor, fontSize: '12px', margin: '8px 0 12px', opacity: 0.65 }}>Click the map to place the marker, or drag the marker to adjust the exact location.</p>
+                            {mapMessage && <div style={{ color: textColor, fontSize: '12px', marginBottom: '10px' }}>{mapMessage}</div>}
+
+                            <div className="property-map" style={{ width: '100%', height: '380px', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${borderColor}` }}>
+                                <MapContainer center={mapCenter} zoom={15} scrollWheelZoom style={{ width: '100%', height: '100%' }}>
+                                    <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://tile.openfreemap.org/styles/liberty/{z}/{x}/{y}.png" />
+                                    <MapClickHandler onSelect={selectMapLocation} />
+                                    {formData.latitude !== null && formData.longitude !== null && (
+                                        <Marker
+                                            position={[Number(formData.latitude), Number(formData.longitude)]}
+                                            icon={markerIcon}
+                                            draggable
+                                            eventHandlers={{
+                                                dragend: event => {
+                                                    const p = event.target.getLatLng();
+                                                    selectMapLocation(p.lat, p.lng);
+                                                },
+                                            }}
+                                        />
+                                    )}
+                                </MapContainer>
+                            </div>
+
+                            {errors.map && <span className="field-error">{errors.map}</span>}
+
+                            <div className="map-coordinates" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                                <div style={{ border: `1px solid ${borderColor}`, borderRadius: '6px', padding: '9px 12px' }}>
+                                    <div style={{ fontSize: '11px', color: textColor, opacity: 0.65 }}>Latitude</div>
+                                    <div style={{ fontSize: '13px', color: headingColor }}>{formData.latitude !== null ? Number(formData.latitude).toFixed(7) : 'Not selected'}</div>
+                                </div>
+                                <div style={{ border: `1px solid ${borderColor}`, borderRadius: '6px', padding: '9px 12px' }}>
+                                    <div style={{ fontSize: '11px', color: textColor, opacity: 0.65 }}>Longitude</div>
+                                    <div style={{ fontSize: '13px', color: headingColor }}>{formData.longitude !== null ? Number(formData.longitude).toFixed(7) : 'Not selected'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ---- IMAGES SECTION ---- */}
+                <div id="section-media" className="form-section">
+                    <div
+                        className="section-card"
+                        style={{
+                            background: cardBg,
+                            borderRadius: '12px',
+                            border: `1px solid ${borderColor}`,
+                            overflow: 'hidden',
+                            boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 3px',
+                        }}
+                    >
+                        <div
+                            className="section-header"
+                            style={{
+                                padding: '20px 24px',
+                                borderBottom: `1px solid ${borderColor}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    background: `${accentColor}14`,
+                                    borderRadius: '8px',
+                                    padding: '8px',
+                                    color: accentColor,
+                                    display: 'flex',
+                                }}
+                            >
+                                <ImageIcon size={18} />
+                            </div>
+                            <div>
+                                <h2 style={{ fontSize: '15px', fontWeight: 600, color: headingColor, margin: 0, letterSpacing: '-0.02em' }}>
+                                    Property Images
+                                </h2>
+                                <p style={{ fontSize: '12px', color: textColor, margin: 0, opacity: 0.6 }}>
+                                    Upload high-quality photos to showcase your property
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="section-body" style={{ padding: '24px' }}>
+                            {/* Upload Zone */}
+                            <label
+                                className="image-upload-zone"
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: `2px dashed ${borderColor}`,
+                                    borderRadius: '12px',
+                                    padding: '48px 24px',
+                                    cursor: 'pointer',
+                                    background: `${textColor}04`,
+                                    transition: 'border-color 0.2s, background 0.2s',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = primaryColor + '60';
+                                    e.currentTarget.style.background = `${primaryColor}08`;
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = borderColor;
+                                    e.currentTarget.style.background = `${textColor}04`;
+                                }}
+                            >
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    style={{ display: 'none' }}
+                                />
+                                <div
+                                    style={{
+                                        width: '48px',
+                                        height: '48px',
+                                        borderRadius: '50%',
+                                        background: `${primaryColor}12`,
+                                        color: primaryColor,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        marginBottom: '16px',
+                                    }}
+                                >
+                                    <Upload size={22} />
+                                </div>
+                                <p
+                                    style={{
+                                        fontSize: '14px',
+                                        fontWeight: 500,
+                                        color: headingColor,
+                                        margin: '0 0 4px',
+                                    }}
+                                >
+                                    Click to upload or drag and drop
+                                </p>
+                                <p
+                                    style={{
+                                        fontSize: '12px',
+                                        color: textColor,
+                                        margin: 0,
+                                        opacity: 0.5,
+                                    }}
+                                >
+                                    PNG, JPG or WebP up to 10MB each
+                                </p>
+                            </label>
+
+                            {/* Image Previews */}
+                            {imagePreviews.length > 0 && (
+                                <div
+                                    className="image-preview-grid"
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                                        gap: '12px',
+                                        marginTop: '20px',
+                                    }}
+                                >
+                                    {imagePreviews.map((preview, index) => (
+                                        <div
+                                            key={index}
+                                            style={{
+                                                position: 'relative',
+                                                aspectRatio: '4/3',
+                                                borderRadius: '8px',
+                                                overflow: 'hidden',
+                                                border: `1px solid ${borderColor}`,
+                                            }}
+                                        >
+                                            <img
+                                                src={preview}
+                                                alt={`Property image ${index + 1}`}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover',
+                                                    display: 'block',
+                                                }}
+                                            />
+                                            <button
+                                                onClick={() => handleRemoveImage(index)}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: '6px',
+                                                    right: '6px',
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    borderRadius: '50%',
+                                                    background: 'rgba(0,0,0,0.6)',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '12px',
+                                                }}
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    );
 }
 
 export default AddProperty;
