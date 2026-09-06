@@ -393,6 +393,38 @@
     }
 
 /* ----------------------------------------------------------------
+   Location map
+   ---------------------------------------------------------------- */
+.pd-map {
+    margin-top: 16px;
+    border: 1px solid var(--border-subtle, #e5e7eb);
+    border-radius: var(--radius-lg, 12px);
+    overflow: hidden;
+}
+
+    .pd-map .leaflet-container {
+        background: var(--page-background, #f8f9fb);
+    }
+
+    .pd-map .leaflet-control-attribution {
+        font-size: 9px;
+        padding: 2px 4px;
+    }
+
+.pd-map-placeholder {
+    margin-top: 16px;
+    height: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px dashed var(--border-subtle, #e5e7eb);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--surface-card, #fff);
+}
+
+/* ----------------------------------------------------------------
    Availability
    ---------------------------------------------------------------- */
 .pd-availability-grid {

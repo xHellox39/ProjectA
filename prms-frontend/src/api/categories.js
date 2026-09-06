@@ -2,14 +2,23 @@
 import { apiClient } from '../api';
 
 export const categoryApi = {
-  list: (params) => apiClient.get('/categories', { params }),
-  shared: () => apiClient.get('/categories/shared'),
-  getById: (id) => apiClient.get(`/categories/${id}`),
-  create: (data) => apiClient.post('/categories', data),
-  update: (id, data) => apiClient.put(`/categories/${id}`, data),
-  remove: (id) => apiClient.delete(`/categories/${id}`),
-  toggle: (id) => apiClient.patch(`/categories/${id}/toggle`),
+  // Generic list (filtered by query params)
+  list: (params) => apiClient.get('/categories/list', { params }),
+
+  // Admin: list all categories (auto-seeds if empty)
+  adminList: () => apiClient.get('/categories'),
+  adminCreate: (data) => apiClient.post('/categories', data),
+  adminUpdate: (id, data) => apiClient.put(`/categories/${id}`, data),
+  adminRemove: (id) => apiClient.delete(`/categories/${id}`),
+  adminToggle: (id) => apiClient.patch(`/categories/${id}/toggle`),
+  adminRestore: (id) => apiClient.patch(`/categories/${id}/restore`),
   seedDefaults: () => apiClient.post('/categories/seed'),
+
+  // Shared (read-only for all users)
+  shared: () => apiClient.get('/categories/shared'),
+
+  // By ID
+  getById: (id) => apiClient.get(`/categories/${id}`),
 
   // Personal (non-admin) endpoints
   personalList: () => apiClient.get('/categories/personal'),

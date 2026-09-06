@@ -80,19 +80,37 @@ export async function updateCategory(id: string, input: UpdateCategoryInput) {
   });
 }
 
-export async function deleteCategory(id: string) {
+export async function deleteCategory(id: string, hardDelete = false) {
   if (!id) throw new Error('Category ID is required');
 
   const category = await prisma.propertyCategory.findUnique({ where: { id } });
   if (!category) throw new Error('Category not found');
 
-  // Prevent deletion if properties are still assigned
+  // Soft delete: toggle isDisabled instead of removing
+  if (!hardDelete) {
+    return prisma.propertyCategory.update({
+      where: { id },
+      data: { isDisabled: true },
+    });
+  }
+
+  // Hard delete: prevent if properties are still assigned
   const propCount = await prisma.property.count({ where: { categoryId: id } });
   if (propCount > 0) {
     throw new Error(`Cannot delete: ${propCount} propert${propCount === 1 ? 'y' : 'ies'} still assigned`);
   }
 
   return prisma.propertyCategory.delete({ where: { id } });
+}
+
+export async function restoreCategory(id: string) {
+  const category = await prisma.propertyCategory.findUnique({ where: { id } });
+  if (!category) throw new Error('Category not found');
+
+  return prisma.propertyCategory.update({
+    where: { id },
+    data: { isDisabled: false },
+  });
 }
 
 export async function toggleCategoryDisabled(id: string) {

@@ -23,6 +23,15 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './AddProperty.css';
 
+// Suppress harmless Firefox deprecation from Leaflet internals (Leaflet#3943)
+if (typeof console !== 'undefined') {
+    const _warn = console.warn;
+    console.warn = function (...args) {
+        if (typeof args[0] === 'string' && args[0].includes('mozPressure')) return;
+        return _warn.apply(console, args);
+    };
+}
+
 const PROPERTY_TYPES = [
     'Residential',
     'Commercial',
@@ -1048,7 +1057,10 @@ function AddProperty() {
 
                             <div className="property-map" style={{ width: '100%', height: '380px', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${borderColor}` }}>
                                 <MapContainer center={mapCenter} zoom={15} scrollWheelZoom style={{ width: '100%', height: '100%' }}>
-                                    <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://tile.openfreemap.org/styles/liberty/{z}/{x}/{y}.png" />
+                                    <TileLayer
+                                        attribution='&copy; OpenStreetMap contributors'
+                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    />
                                     <MapClickHandler onSelect={selectMapLocation} />
                                     {formData.latitude !== null && formData.longitude !== null && (
                                         <Marker

@@ -31,7 +31,7 @@ function AdminCategories() {
 
   async function loadCategories() {
     try {
-      const { data } = await categoryApi.list()
+      const { data } = await categoryApi.adminList()
       setCategories(data?.data ?? [])
     } catch (e) {
       console.error('Failed to load categories', e)
@@ -65,14 +65,14 @@ function AdminCategories() {
     if (!formName.trim()) return showToast('Name is required', 'error')
     try {
       if (editingId) {
-        await categoryApi.update(editingId, {
+        await categoryApi.adminUpdate(editingId, {
           name: formName.trim(),
           description: formDesc.trim(),
           isShared: formShared,
         })
         showToast('Category updated')
       } else {
-        await categoryApi.create({
+        await categoryApi.adminCreate({
           name: formName.trim(),
           description: formDesc.trim(),
           isShared: formShared,
@@ -89,7 +89,7 @@ function AdminCategories() {
 
   async function toggleDisabled(id) {
     try {
-      await categoryApi.toggle(id)
+      await categoryApi.adminToggle(id)
       showToast('Category toggled')
       loadCategories()
     } catch (e) {
@@ -99,7 +99,7 @@ function AdminCategories() {
 
   async function remove(id) {
     try {
-      await categoryApi.remove(id)
+      await categoryApi.adminRemove(id)
       showToast('Category deleted')
       loadCategories()
     } catch (e) {

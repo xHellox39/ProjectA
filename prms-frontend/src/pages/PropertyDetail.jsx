@@ -20,7 +20,20 @@ import { getFullUrl } from '../config/apiBaseUrl';
 import { useAuth } from '../contexts/AuthContext';
 import TenantBookingModal from '../components/TenantBookingModal';
 import ImageGallery from '../components/ImageGallery';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import './PropertyDetail.css';
+
+const markerIcon = new L.Icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+});
 
 const STATUS_CONFIG = {
     AVAILABLE: { label: 'Available', tone: 'success' },
@@ -300,6 +313,32 @@ function PropertyDetail() {
                                     </span>
                                 </div>
                             </div>
+
+                            {property.latitude && property.longitude ? (
+                                <div className="pd-map">
+                                    <MapContainer
+                                        center={[Number(property.latitude), Number(property.longitude)]}
+                                        zoom={15}
+                                        scrollWheelZoom={false}
+                                        zoomControl={false}
+                                        style={{ height: '320px', width: '100%' }}
+                                    >
+                                        <TileLayer
+                                            attribution='&copy; OpenStreetMap contributors'
+                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        />
+                                        <Marker
+                                            position={[Number(property.latitude), Number(property.longitude)]}
+                                            icon={markerIcon}
+                                        />
+                                    </MapContainer>
+                                </div>
+                            ) : (
+                                <div className="pd-map-placeholder">
+                                    <MapPin size={28} style={{ opacity: 0.3, color: 'var(--text-secondary, #64748b)' }} />
+                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)' }}>No map location set</span>
+                                </div>
+                            )}
                         </section>
 
                         <div className="pd-divider" />
