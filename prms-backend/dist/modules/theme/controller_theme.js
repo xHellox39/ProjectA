@@ -32,7 +32,7 @@ class ThemeController {
         this.getDraft = async (req, res) => {
             try {
                 const draft = await this.service.getDraft(String(req.params.themeId));
-                HELPERS(req).log({ action: 'VIEW_THEME_DRAFT', entity: 'Theme', entityId: req.params.id, description: 'Viewed theme draft' });
+                HELPERS(req).log({ action: 'VIEW_THEME_DRAFT', entity: 'Theme', entityId: req.params.themeId, description: 'Viewed theme draft' });
                 res.json((0, response_1.successResponse)(draft));
             }
             catch (error) {
@@ -43,7 +43,7 @@ class ThemeController {
         this.saveDraft = async (req, res) => {
             try {
                 await this.service.saveDraft(String(req.params.themeId), req.body.lightConfig, req.body.darkConfig);
-                HELPERS(req).log({ action: 'SAVE_THEME_DRAFT', entity: 'Theme', entityId: req.params.id, description: 'Saved theme draft' });
+                HELPERS(req).log({ action: 'SAVE_THEME_DRAFT', entity: 'Theme', entityId: req.params.themeId, description: 'Saved theme draft' });
                 res.json((0, response_1.successResponse)(null, 'Draft saved'));
             }
             catch (error) {
@@ -54,7 +54,7 @@ class ThemeController {
         this.publishDraft = async (req, res) => {
             try {
                 await this.service.publishDraft(String(req.params.themeId));
-                HELPERS(req).log({ action: 'PUBLISH_THEME', entity: 'Theme', entityId: req.params.id, description: 'Published theme configuration' });
+                HELPERS(req).log({ action: 'PUBLISH_THEME', entity: 'Theme', entityId: req.params.themeId, description: 'Published theme configuration' });
                 res.json((0, response_1.successResponse)(null, 'Theme published'));
             }
             catch (error) {
@@ -75,8 +75,8 @@ class ThemeController {
         };
         this.restoreVersion = async (req, res) => {
             try {
-                await this.service.restoreVersion(String(req.params.themeId), parseInt(req.body.version));
-                HELPERS(req).log({ action: 'RESTORE_THEME_VERSION', entity: 'Theme', entityId: req.params.id, description: 'Restored theme version' });
+                await this.service.restoreVersion(String(req.params.themeId), parseInt(req.params.version));
+                HELPERS(req).log({ action: 'RESTORE_THEME_VERSION', entity: 'Theme', entityId: `${String(req.params.themeId)}/v${req.params.version}`, description: 'Restored theme version' });
                 res.json((0, response_1.successResponse)(null, 'Version restored'));
             }
             catch (error) {

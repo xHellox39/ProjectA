@@ -98,6 +98,17 @@ class PaymentController {
                 res.status(400).json({ success: false, error: { message: error.message } });
             }
         };
+        this.payPayment = async (req, res) => {
+            try {
+                const payment = await paymentService.completePayment(String(req.params.id));
+                HELPERS(req).log({ action: 'PAY_PAYMENT', entity: 'Payment', entityId: req.params.id, description: `Tenant completed payment` });
+                res.json((0, response_1.successResponse)(payment, 'Payment successful'));
+            }
+            catch (error) {
+                HELPERS(req).log({ action: 'PAY_PAYMENT', entity: 'Payment', entityId: req.params.id, status: 'Failed', level: 'error', errorMessage: error.message });
+                res.status(400).json({ success: false, error: { message: error.message } });
+            }
+        };
         this.summary = async (req, res) => {
             try {
                 const summary = await paymentService.getFinanceSummary(req.user.id);

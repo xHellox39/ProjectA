@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '../config/routes'
 import {
@@ -28,16 +28,31 @@ function TenantDashboard() {
     return () => clearTimeout(t)
   }, [])
 
-  const rentals = [
-    {
-      name: 'Skyline Tower, Unit 402',
-      location: 'Kuala Lumpur',
-    },
-    {
-      name: 'Green Valley Villas, No. 12',
-      location: 'Johor Bahru',
-    },
-  ]
+  /* ---- Fetch bookings for active rentals ---- */
+  const [bookings, setBookings] = useState([]);
+  const loadBookings = useCallback(async () => {
+    try {
+      const res = await bookingApi.myBookings();
+      const all = res.data?.data ?? res.data ?? [];
+      setBookings(Array.isArray(all) ? all : []);
+    } catch (e) { console.error('Failed to load bookings', e); }
+  }, []);
+  useEffect(() => { loadBookings(); }, [loadBookings]);
+
+  // Derive active rentals from confirmed + paid bookings
+  const activeRentals = bookings.filter(b => b.status === 'CONFIRMED' && b.paymentStatus === 'PAID');
+
+  /* ---- Hardcoded fallback data (used until real APIs are wired) ---- */
+  const fallbackRentals = [
+    { name: 'Skyline Tower, Unit 402', location: 'Kuala Lumpur' },
+    { name: 'Green Valley Villas, No. 12', location: 'Johor Bahru' },
+  ];
+
+  const displayRentals = activeRentals.map(b => ({
+    name: b.property?.title || 'Property',
+    location: b.property?.address || '',
+    id: b.id,
+  })) || fallbackRentals;
 
   const savedProperties = [
     {
@@ -171,10 +186,10 @@ function TenantDashboard() {
               icon={Home}
               iconBg="icon-blue"
               label="Active Rentals"
-              value="2"
-              sublabel="Across 2 locations"
-              trend="Both active"
-              trendDir="up"
+              value={displayRentals.length > 0 ? `${displayRentals.length}` : '0'}
+              sublabel={displayRentals.length > 0 ? 'Currently rented' : 'No active rentals'}
+              trend={displayRentals.length > 0 ? 'All active' : 'Available'}
+              trendDir={displayRentals.length > 0 ? 'up' : 'neutral'}
             />
 
             {/* Maintenance */}
@@ -208,16 +223,19 @@ function TenantDashboard() {
         </div>
 
         <div className="tenant-rental-list">
-          {rentals.map((rental) => (
-            <div className="tenant-rental-item" key={rental.name}>
+          {displayRentals.map((rental) => (
+            <div className="tenant-rental-item" key={rental.id || rental.name}>
               <div className="tenant-rental-dot" />
               <div>
                 <strong>{rental.name}</strong>
-                <p>{rental.location}</p>
+                <p>{rental.location || ''}</p>
               </div>
               <span className="status-badge active">Active</span>
             </div>
           ))}
+          {displayRentals.length === 0 && (
+            <p style={{ padding: 16, textAlign: 'center', color: 'var(--color-text-3)' }}>No active rentals. Book a property to get started!</p>
+          )}
         </div>
       </section>
 

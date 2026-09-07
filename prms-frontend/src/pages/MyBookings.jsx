@@ -18,8 +18,10 @@ export default function MyBookings() {
     setLoading(true);
     setError('');
     try {
-      const res = await bookingApi.list({ status: tab === 'past' ? 'completed' : tab });
-      setBookings(res.data?.data || []);
+      const res = await bookingApi.myBookings();
+      const all = res.data?.data || res.data || [];
+      const statusMap = { active: 'PENDING', upcoming: 'CONFIRMED', past: 'COMPLETED', cancelled: 'CANCELLED' };
+      setBookings(all.filter(b => b.status === statusMap[tab]));
     } catch (e) { setError(e.message || 'Failed to load bookings'); console.error(e); }
     finally { setLoading(false); }
   }, [tab]);
@@ -52,10 +54,11 @@ export default function MyBookings() {
                   <span className={`status-badge status-${b.status.toLowerCase()}`}>{b.status}</span>
                 </div>
                 <h3>{b.property?.title || 'Property'}</h3>
-                <p>{b.checkIn} → {b.checkOut}</p>
+                <p>{new Date(b.start_date).toLocaleDateString()} → {new Date(b.end_date).toLocaleDateString()}</p>
                 <p className="price">$ {b.totalAmount ?? b.monthlyRate}</p>
-                <div className="card-footer">
-                  <span className="btn-text" onClick={e => { e.stopPropagation(); setSelected(b); }}>View Details</span>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span className={`status-badge status-${(b.status || '').toLowerCase()}`}>{b.status || 'PENDING'}</span>
+                  <span className={`status-badge status-${(b.paymentStatus || '').toLowerCase()}`}>{b.paymentStatus || 'UNPAID'}</span>
                 </div>
               </div>
             ))}

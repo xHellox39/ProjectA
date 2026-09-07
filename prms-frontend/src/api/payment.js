@@ -1,6 +1,9 @@
 import { apiClient } from './ApiClient';
 
 export const paymentApi = {
+  // Tenant pays a payment (simulated)
+  pay: (id) => apiClient.post(`/payments/${id}/pay`),
+
   list(params) {
     return apiClient.get('/payments', { params });
   },

@@ -12,6 +12,10 @@ exports.getCurrentUser = getCurrentUser;
 exports.updateUserProfile = updateUserProfile;
 exports.logoutUser = logoutUser;
 exports.changePassword = changePassword;
+exports.setPassword = setPassword;
+exports.generateOtpCode = generateOtpCode;
+exports.verifyOtpCode = verifyOtpCode;
+exports.resetPassword = resetPassword;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_1 = require("../../db");
@@ -74,14 +78,20 @@ async function verifyRefreshToken(userId, refreshToken) {
     return user;
 }
 async function getCurrentUser(userId) {
-    return db_1.prisma.user.findUnique({
+    const user = await db_1.prisma.user.findUnique({
         where: { id: userId },
         select: {
             id: true, email: true, full_name: true, phone: true,
             profile_img_url: true, firebase_uid: true, is_active: true, created_at: true,
+            passwordHash: true,
             UserRole: { include: { role: true } },
         },
     });
+    // Expose a boolean so the frontend knows whether a password is set
+    return {
+        ...user,
+        hasPassword: !!user?.passwordHash,
+    };
 }
 async function updateUserProfile(userId, data) {
     // If role is provided, update the UserRole association
@@ -118,5 +128,48 @@ async function changePassword(userId, currentPassword, newPassword) {
     return db_1.prisma.user.update({
         where: { id: userId },
         data: { passwordHash: newHash },
+    });
+}
+async function setPassword(userId, newPassword) {
+    const user = await db_1.prisma.user.findUnique({ where: { id: userId } });
+    if (!user)
+        throw new Error('User not found');
+    if (user.passwordHash)
+        throw new Error('Already has a password. Use change password instead.');
+    const newHash = await bcryptjs_1.default.hash(newPassword, 10);
+    return db_1.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash: newHash },
+    });
+}
+const otpStore = new Map();
+async function generateOtpCode(email) {
+    const user = await db_1.prisma.user.findUnique({ where: { email } });
+    if (!user)
+        throw new Error('Email not found');
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(email, { code, expiresAt: Date.now() + 5 * 60 * 1000 });
+    return code;
+}
+async function verifyOtpCode(email, code) {
+    const entry = otpStore.get(email);
+    if (!entry)
+        throw new Error('OTP not found. Request a new one first.');
+    if (Date.now() > entry.expiresAt) {
+        otpStore.delete(email);
+        throw new Error('OTP expired. Request a new one.');
+    }
+    if (entry.code !== code)
+        throw new Error('Invalid OTP code.');
+    otpStore.delete(email);
+}
+async function resetPassword(email, newPassword) {
+    const user = await db_1.prisma.user.findUnique({ where: { email } });
+    if (!user)
+        throw new Error('User not found');
+    const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
+    return db_1.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
     });
 }

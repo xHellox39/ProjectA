@@ -1,6 +1,9 @@
 import { apiClient } from './ApiClient';
 
 export const bookingApi = {
+  // Confirm booking and create invoice/payment atomically
+  confirmWithInvoice: (id) => api.patch(`/bookings/${id}/confirm-with-invoice`),
+
   list(params) {
     return apiClient.get('/bookings', { params });
   },
@@ -37,6 +40,6 @@ export const bookingApi = {
    * Returns { hasOverlap: boolean, conflictingBookings: Booking[] }
    */
   checkOverlap(params) {
-    return apiClient.get('/booking/check-overlap', { params });
+    return apiClient.get('/bookings/check-overlap', { params });
   },
 };

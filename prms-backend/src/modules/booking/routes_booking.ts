@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../../middleware/auth';
-import { adminOrLandlord } from '../../middleware/rbac';
+import { adminOrLandlord, adminOrAgent } from '../../middleware/rbac';
 import { BookingController } from './controller_booking';
 
 const router = express.Router();
@@ -12,6 +12,7 @@ router.get('/:id', authenticate, ctrl.getById);
 router.post('/', authenticate, ctrl.create);
 router.put('/:id', authenticate, adminOrLandlord, ctrl.update);
 router.patch('/:id/confirm', authenticate, adminOrLandlord, ctrl.confirm);
+router.patch('/:id/confirm-with-invoice', authenticate, adminOrLandlord, ctrl.confirmWithInvoice);
 router.patch('/:id/reject', authenticate, adminOrLandlord, ctrl.reject);
 router.patch('/:id/cancel', authenticate, ctrl.cancel);
 router.get('/summary', authenticate, ctrl.getSummary);

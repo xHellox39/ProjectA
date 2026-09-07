@@ -6,6 +6,7 @@ exports.getCategoryById = getCategoryById;
 exports.createCategory = createCategory;
 exports.updateCategory = updateCategory;
 exports.deleteCategory = deleteCategory;
+exports.restoreCategory = restoreCategory;
 exports.toggleCategoryDisabled = toggleCategoryDisabled;
 exports.seedDefaultCategories = seedDefaultCategories;
 const db_1 = require("../../db");
@@ -63,18 +64,34 @@ async function updateCategory(id, input) {
         data: input,
     });
 }
-async function deleteCategory(id) {
+async function deleteCategory(id, hardDelete = false) {
     if (!id)
         throw new Error('Category ID is required');
     const category = await db_1.prisma.propertyCategory.findUnique({ where: { id } });
     if (!category)
         throw new Error('Category not found');
-    // Prevent deletion if properties are still assigned
+    // Soft delete: toggle isDisabled instead of removing
+    if (!hardDelete) {
+        return db_1.prisma.propertyCategory.update({
+            where: { id },
+            data: { isDisabled: true },
+        });
+    }
+    // Hard delete: prevent if properties are still assigned
     const propCount = await db_1.prisma.property.count({ where: { categoryId: id } });
     if (propCount > 0) {
         throw new Error(`Cannot delete: ${propCount} propert${propCount === 1 ? 'y' : 'ies'} still assigned`);
     }
     return db_1.prisma.propertyCategory.delete({ where: { id } });
+}
+async function restoreCategory(id) {
+    const category = await db_1.prisma.propertyCategory.findUnique({ where: { id } });
+    if (!category)
+        throw new Error('Category not found');
+    return db_1.prisma.propertyCategory.update({
+        where: { id },
+        data: { isDisabled: false },
+    });
 }
 async function toggleCategoryDisabled(id) {
     const category = await db_1.prisma.propertyCategory.findUnique({ where: { id } });

@@ -15,4 +15,5 @@ router.get('/summary', ctrl.summary);
 router.get('/:id', ctrl.getById);
 router.post('/', ctrl.create);
 router.patch('/:id/mark-paid', rbac_1.adminOrLandlord, ctrl.markPaid);
+router.post('/:id/pay', ctrl.payPayment);
 exports.default = router;

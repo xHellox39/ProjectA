@@ -22,8 +22,8 @@ export default function TenantPayments() {
 
   useEffect(() => { load(); }, [load]);
 
-  const markPaid = async (id) => {
-    try { await paymentApi.markPaid(id); load(); } catch (e) { alert(e.response?.data?.message || 'Failed'); }
+  const pay = async (id) => {
+    try { await paymentApi.pay(id); load(); } catch (e) { alert(e.response?.data?.error?.message || 'Failed'); }
   };
 
   return (
@@ -49,13 +49,13 @@ export default function TenantPayments() {
             <tbody>
               {payments.map(p => (
                 <tr key={p._id || p.id}>
-                  <td>{p.property?.title || 'N/A'}</td>
-                  <td>{p.dueDate}</td>
+                  <td>{p.booking?.property?.title || 'N/A'}</td>
+                  <td>{p.due_date ? new Date(p.due_date).toLocaleDateString() : '—'}</td>
                   <td>$ {p.amount}</td>
                   <td><span className={`status-badge status-${(p.status||'').toLowerCase()}`}>{p.status}</span></td>
                   <td>
-                    {p.status === 'pending' && <button className="btn btn-sm btn-primary" onClick={() => markPaid(p._id || p.id)}>Pay Now</button>}
-                    <Link to={`/receipt/${p._id || p.id}`} className="btn btn-sm btn-outline ml-1">Receipt</Link>
+                    {p.status === 'PENDING' && <button className="btn btn-sm btn-primary" onClick={() => markPaid(p._id || p.id)}>Pay Now</button>}
+                    <Link to={`/payment-receipts/${p._id || p.id}`} className="btn btn-sm btn-outline ml-1">Receipt</Link>
                   </td>
                 </tr>
               ))}

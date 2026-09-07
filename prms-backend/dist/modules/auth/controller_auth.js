@@ -138,6 +138,7 @@ class AuthController {
                     phone: user.phone,
                     profile_img_url: user.profile_img_url,
                     firebase_uid: user.firebase_uid,
+                    hasPassword: user.hasPassword,
                     role: user.UserRole[0]?.role.name || 'Tenant',
                 }));
             }
@@ -179,6 +180,21 @@ class AuthController {
             }
             catch (error) {
                 HELPERS(req).log({ userId: req.user?.id, username: req.user?.email, action: 'PASSWORD_CHANGE', entity: 'User', description: `Password change failed: ${error.message}`, status: 'Failed', level: 'error', errorMessage: error.message });
+                res.status(400).json({ success: false, error: { message: error.message } });
+            }
+        };
+        this.setPassword = async (req, res) => {
+            try {
+                const { newPassword } = req.body;
+                if (!newPassword) {
+                    return res.status(400).json({ success: false, error: { message: 'New password required' } });
+                }
+                await authService.setPassword(req.user.id, newPassword);
+                HELPERS(req).log({ userId: req.user.id, username: req.user.email, userRole: req.user.role, action: 'PASSWORD_SET', entity: 'User', entityId: req.user.id, description: 'Password set successfully', status: 'Success', level: 'info' });
+                res.json((0, response_1.successResponse)(null, 'Password set successfully'));
+            }
+            catch (error) {
+                HELPERS(req).log({ userId: req.user?.id, username: req.user?.email, action: 'PASSWORD_SET', entity: 'User', description: `Password set failed: ${error.message}`, status: 'Failed', level: 'error', errorMessage: error.message });
                 res.status(400).json({ success: false, error: { message: error.message } });
             }
         };
@@ -272,6 +288,60 @@ class AuthController {
             }
             catch (error) {
                 HELPERS(req).log({ userId: req.user?.id, username: req.user?.email, action: 'PROFILE_IMAGE_UPLOAD', entity: 'User', description: `Profile image upload failed: ${error.message}`, status: 'Failed', level: 'error', errorMessage: error.message });
+                res.status(400).json({ success: false, error: { message: error.message } });
+            }
+        };
+        this.forgotPassword = async (req, res) => {
+            try {
+                const errors = (0, express_validator_1.validationResult)(req);
+                if (!errors.isEmpty()) {
+                    return res.status(400).json({ success: false, error: { message: errors.array()[0].msg } });
+                }
+                const { email } = req.body;
+                const code = await authService.generateOtpCode(email);
+                HELPERS(req).log({ username: email, action: 'FORGOT_PASSWORD', entity: 'User', description: `OTP generated for ${email}`, status: 'Success', level: 'info' });
+                res.json((0, response_1.successResponse)({ code }, 'OTP generated'));
+            }
+            catch (error) {
+                HELPERS(req).log({ action: 'FORGOT_PASSWORD', entity: 'User', description: `Forgot password failed: ${error.message}`, status: 'Failed', level: 'error', errorMessage: error.message });
+                res.status(400).json({ success: false, error: { message: error.message } });
+            }
+        };
+        this.verifyOtp = async (req, res) => {
+            try {
+                const errors = (0, express_validator_1.validationResult)(req);
+                if (!errors.isEmpty()) {
+                    return res.status(400).json({ success: false, error: { message: errors.array()[0].msg } });
+                }
+                const { email, otp } = req.body;
+                await authService.verifyOtpCode(email, otp);
+                HELPERS(req).log({ username: email, action: 'VERIFY_OTP', entity: 'User', description: 'OTP verified successfully', status: 'Success', level: 'info' });
+                res.json((0, response_1.successResponse)(null, 'OTP verified'));
+            }
+            catch (error) {
+                HELPERS(req).log({ action: 'VERIFY_OTP', entity: 'User', description: `Verify OTP failed: ${error.message}`, status: 'Failed', level: 'error', errorMessage: error.message });
+                res.status(400).json({ success: false, error: { message: error.message } });
+            }
+        };
+        this.resetPassword = async (req, res) => {
+            try {
+                const errors = (0, express_validator_1.validationResult)(req);
+                if (!errors.isEmpty()) {
+                    return res.status(400).json({ success: false, error: { message: errors.array()[0].msg } });
+                }
+                const { email, otp, newPassword, confirmPassword } = req.body;
+                if (!newPassword || newPassword.length < 6) {
+                    return res.status(400).json({ success: false, error: { message: 'New password must be at least 6 characters' } });
+                }
+                if (newPassword !== confirmPassword) {
+                    return res.status(400).json({ success: false, error: { message: 'Passwords do not match' } });
+                }
+                await authService.resetPassword(email, newPassword);
+                HELPERS(req).log({ username: email, action: 'PASSWORD_RESET', entity: 'User', description: 'Password reset successfully for ' + email, status: 'Success', level: 'info' });
+                res.json((0, response_1.successResponse)(null, 'Password reset successfully'));
+            }
+            catch (error) {
+                HELPERS(req).log({ action: 'PASSWORD_RESET', entity: 'User', description: `Password reset failed: ${error.message}`, status: 'Failed', level: 'error', errorMessage: error.message });
                 res.status(400).json({ success: false, error: { message: error.message } });
             }
         };

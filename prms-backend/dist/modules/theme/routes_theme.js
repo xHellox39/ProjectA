@@ -11,11 +11,11 @@ const router = express_1.default.Router();
 const ctrl = new controller_theme_1.ThemeController();
 router.use(auth_1.authenticate);
 // Theme data - authenticated users
-router.get('/themes', ctrl.getTheme);
-router.get('/themes/:themeId/draft', ctrl.getDraft);
-router.get('/themes/:themeId/versions', ctrl.getVersions);
+router.get('/', ctrl.getTheme);
+router.get('/:themeId/draft', ctrl.getDraft);
+router.get('/:themeId/versions', ctrl.getVersions);
 // Admin only - write operations
-router.put('/themes/:themeId/draft', rbac_1.adminOnly, ctrl.saveDraft);
-router.post('/themes/:themeId/publish', rbac_1.adminOnly, ctrl.publishDraft);
-router.post('/themes/:themeId/versions/:version/restore', rbac_1.adminOnly, ctrl.restoreVersion);
+router.put('/:themeId/draft', rbac_1.adminOnly, ctrl.saveDraft);
+router.post('/:themeId/publish', rbac_1.adminOnly, ctrl.publishDraft);
+router.post('/:themeId/versions/:version/restore', rbac_1.adminOnly, ctrl.restoreVersion);
 exports.default = router;

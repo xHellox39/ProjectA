@@ -29,7 +29,7 @@ export default function AdminBookings() {
   const exportCsv = () => {
     const header = 'ID,Tenant,Property,Check-in,Check-out,Status,Amount';
     const rows = bookings.map(b =>
-      `"${b._id||''}","${b.tenant?.full_name||b.tenant?.email||''}","${b.property?.title||''}","${b.checkIn||''}","${b.checkOut||''}","${b.status||''}","${b.totalAmount||''}"`
+      `"${b._id||''}","${b.user?.full_name||b.user?.email||''}","${b.property?.title||''}","${new Date(b.start_date).toLocaleDateString()||''}","${new Date(b.end_date).toLocaleDateString()||''}","${(b.status||'')}","${b.totalAmount||''}"`
     );
     const csv = [header, ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -64,10 +64,10 @@ export default function AdminBookings() {
               {bookings.map(b => (
                 <tr key={b._id || b.id}>
                   <td>{(b._id||'').slice(-6)}</td>
-                  <td>{b.tenant?.full_name ?? b.tenant?.email}</td>
+                  <td>{b.user?.full_name ?? b.user?.email}</td>
                   <td>{b.property?.title}</td>
-                  <td>{b.checkIn} → {b.checkOut}</td>
-                  <td><span className={`status-badge status-${(b.status||'').toLowerCase()}`}>{b.status}</span></td>
+                  <td>{new Date(b.start_date).toLocaleDateString()} → {new Date(b.end_date).toLocaleDateString()}</td>
+                  <td><span className={`status-badge status-${((b.status||'')).toLowerCase()}`}>{b.status}</span></td>
                   <td>$ {b.totalAmount ?? '-'}</td>
                   <td><button className="btn btn-sm btn-danger" onClick={() => cancel(b._id || b.id)}>Cancel</button></td>
                 </tr>

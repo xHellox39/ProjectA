@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, AlertTriangle, X, Loader2, CalendarDays } from 'lucide-react';
 import { bookingApi } from '../api';
@@ -15,6 +16,7 @@ import './TenantBookingModal.css';
  *   onClose   – () => void  callback to close the modal
  */
 function TenantBookingModal({ property, isOpen, onClose }) {
+  const navigate = useNavigate();
   const todayStr = new Date().toISOString().slice(0, 10);
   const maxDate = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
 
@@ -64,9 +66,10 @@ function TenantBookingModal({ property, isOpen, onClose }) {
         message: 'Booking request submitted successfully!',
         booking: res?.data?.data ?? res?.data,
       });
-      /* Auto-close after short delay */
+      /* Auto-close after short delay, then navigate to bookings */
       setTimeout(() => {
         resetAndClose();
+        navigate('/tenant/bookings');
       }, 2500);
     } catch (err) {
       setSubmitResult({

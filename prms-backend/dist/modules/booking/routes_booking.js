@@ -15,6 +15,7 @@ router.get('/:id', auth_1.authenticate, ctrl.getById);
 router.post('/', auth_1.authenticate, ctrl.create);
 router.put('/:id', auth_1.authenticate, rbac_1.adminOrLandlord, ctrl.update);
 router.patch('/:id/confirm', auth_1.authenticate, rbac_1.adminOrLandlord, ctrl.confirm);
+router.patch('/:id/confirm-with-invoice', auth_1.authenticate, rbac_1.adminOrLandlord, ctrl.confirmWithInvoice);
 router.patch('/:id/reject', auth_1.authenticate, rbac_1.adminOrLandlord, ctrl.reject);
 router.patch('/:id/cancel', auth_1.authenticate, ctrl.cancel);
 router.get('/summary', auth_1.authenticate, ctrl.getSummary);

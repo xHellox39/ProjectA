@@ -99,6 +99,17 @@ class BookingController {
                 res.status(400).json({ success: false, error: { message: error.message } });
             }
         };
+        this.confirmWithInvoice = async (req, res) => {
+            try {
+                const result = await bookingService.confirmBooking(String(req.params.id));
+                HELPERS(req).log({ action: 'CONFIRM_BOOKING_WITH_INVOICE', entity: 'Booking', entityId: req.params.id, description: `Confirmed booking and created invoice/payment` });
+                res.json((0, response_1.successResponse)(result, 'Booking confirmed and payment created'));
+            }
+            catch (error) {
+                HELPERS(req).log({ action: 'CONFIRM_BOOKING_WITH_INVOICE', entity: 'Booking', entityId: req.params.id, status: 'Failed', level: 'error', errorMessage: error.message });
+                res.status(400).json({ success: false, error: { message: error.message } });
+            }
+        };
         this.confirm = async (req, res) => {
             try {
                 const booking = await bookingService.updateBooking(String(req.params.id), { status: 'CONFIRMED' });
@@ -106,7 +117,7 @@ class BookingController {
                 res.json((0, response_1.successResponse)(booking, 'Booking confirmed'));
             }
             catch (error) {
-                HELPERS(req).log({ action: 'CONFIRM_BOOKING', entity: 'Booking', status: 'Failed', level: 'error', errorMessage: error.message });
+                HELPERS(req).log({ action: 'CONFIRM_BOOKING', entity: 'Booking', entityId: req.params.id, status: 'Failed', level: 'error', errorMessage: error.message });
                 res.status(400).json({ success: false, error: { message: error.message } });
             }
         };

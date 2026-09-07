@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.refreshBody = exports.loginBody = exports.registerBody = void 0;
+exports.resetPasswordBody = exports.verifyOtpBody = exports.refreshBody = exports.loginBody = exports.registerBody = void 0;
 const express_validator_1 = require("express-validator");
 exports.registerBody = [
     (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Valid email required'),
@@ -15,4 +15,14 @@ exports.loginBody = [
 ];
 exports.refreshBody = [
     (0, express_validator_1.body)('refreshToken').notEmpty().withMessage('Refresh token required'),
+];
+exports.verifyOtpBody = [
+    (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+    (0, express_validator_1.body)('otp').notEmpty().withMessage('OTP code required'),
+];
+exports.resetPasswordBody = [
+    (0, express_validator_1.body)('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+    (0, express_validator_1.body)('otp').notEmpty().withMessage('OTP code required'),
+    (0, express_validator_1.body)('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
+    (0, express_validator_1.body)('confirmPassword').notEmpty().withMessage('Confirm password required'),
 ];

@@ -35,3 +35,43 @@ export async function createPayment(data: { bookingId: string; userId: string; a
 export async function markAsPaid(id: string) {
   return prisma.payment.update({ where: { id }, data: { status: 'PAID' } });
 }
+
+// Cascade: completes payment, updates invoice, booking, and property in one transaction
+export async function completePayment(id: string) {
+  const payment = await prisma.payment.findUnique({
+    where: { id },
+    include: { booking: { include: { property: true } } },
+  });
+  if (!payment) throw new Error('Payment not found');
+  if (payment.status === 'PAID') throw new Error('Payment already paid');
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Update payment to PAID
+    const updatedPayment = await tx.payment.update({
+      where: { id },
+      data: { status: 'PAID', paid_at: new Date() },
+    });
+
+    // 2. Update associated invoices
+    await tx.invoice.updateMany({
+      where: { bookingId: payment.bookingId, status: 'PENDING' },
+      data: { status: 'PAID' },
+    });
+
+    // 3. Update booking payment status to PAID
+    await tx.booking.update({
+      where: { id: payment.bookingId },
+      data: { paymentStatus: 'PAID' },
+    });
+
+    // 4. Update property to RENTED
+    if (payment.booking?.propertyId) {
+      await tx.property.update({
+        where: { id: payment.booking.propertyId },
+        data: { status: 'RENTED' },
+      });
+    }
+
+    return updatedPayment;
+  });
+}

@@ -52,6 +52,17 @@ export class PaymentController {
     } catch (error: any) { HELPERS(req).log({ action: 'MARK_PAYMENT_PAID', entity: 'Payment', status: 'Failed', level: 'error', errorMessage: error.message }); res.status(400).json({ success: false, error: { message: error.message } }); }
   };
 
+  payPayment = async (req: Request, res: Response) => {
+    try {
+      const payment = await paymentService.completePayment(String(req.params.id));
+      HELPERS(req).log({ action: 'PAY_PAYMENT', entity: 'Payment', entityId: req.params.id, description: `Tenant completed payment` });
+      res.json(successResponse(payment, 'Payment successful'));
+    } catch (error: any) {
+      HELPERS(req).log({ action: 'PAY_PAYMENT', entity: 'Payment', entityId: req.params.id, status: 'Failed', level: 'error', errorMessage: error.message });
+      res.status(400).json({ success: false, error: { message: error.message } });
+    }
+  };
+
   summary = async (req: AuthRequest, res: Response) => {
     try {
       const summary = await paymentService.getFinanceSummary(req.user!.id);
