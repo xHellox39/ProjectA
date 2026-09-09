@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useCustomization } from '../contexts/CustomizationContext'
 import { propertyApi, getApiError } from '../api'
 import { getPropertyRoute, getPropertyDetailPath, roleToPath } from '../config/routes'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -12,6 +13,7 @@ import {
   Save,
   X,
 } from 'lucide-react'
+import './EditProperty.css'
 
 const UNDEAD_PROPERTY_TYPES = [
   'apartment',
@@ -56,8 +58,19 @@ export default function EditProperty() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { id } = useParams()
+  const {
+    bgColor,
+    cardBg,
+    primaryColor,
+    headingColor,
+    textColor,
+    borderColor,
+    accentColor,
+    successColor,
+  } = useCustomization()
+
   const [property, setProperty] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
@@ -70,9 +83,13 @@ export default function EditProperty() {
     rent: '',
     city: '',
     state: '',
+    description: '',
     status: 'AVAILABLE',
     availableFrom: '',
     availableTo: '',
+    temporary: false,
+    latitude: null,
+    longitude: null,
   })
 
   const [selectedAmenities, setSelectedAmenities] = useState([])
@@ -98,9 +115,13 @@ export default function EditProperty() {
         rent: p.rent || p.price || '',
         city: p.city || '',
         state: p.state || '',
+        description: p.description || '',
         status: p.status || 'AVAILABLE',
         availableFrom: p.availableFrom ? p.availableFrom.split('T')[0] : '',
         availableTo: p.availableTo ? p.availableTo.split('T')[0] : '',
+        temporary: p.temporary ?? false,
+        latitude: p.latitude ?? null,
+        longitude: p.longitude ?? null,
       })
       setSelectedCategoryId(p.categoryId || p.category?._id || '')
       setSelectedAmenities(
@@ -172,9 +193,13 @@ export default function EditProperty() {
         rent: Number(formData.rent),
         city: formData.city.trim(),
         state: formData.state.trim(),
+        description: formData.description.trim(),
         status: formData.status,
         availableFrom: formData.availableFrom || undefined,
         availableTo: formData.availableTo || undefined,
+        temporary: formData.temporary,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
         selectedAmenities,
         imageUrls,
       }
@@ -320,9 +345,21 @@ export default function EditProperty() {
                   </option>
                 ))}
               </select>
-            </label>
+              </label>
 
-            {categories.length > 0 && (
+              <label>
+              Description <span className="required">*</span>
+              <textarea
+              name="description"
+              required
+              placeholder="Describe the property..."
+              rows={4}
+              value={formData.description}
+              onChange={(e) => handleFieldChange('description', e.target.value)}
+              />
+              </label>
+
+              {categories.length > 0 && (
               <label>
                 Category
                 <select
@@ -384,6 +421,15 @@ export default function EditProperty() {
                 />
               </label>
             </div>
+
+            <label className="temporary-row">
+              <input
+                type="checkbox"
+                checked={formData.temporary}
+                onChange={(e) => handleFieldChange('temporary', e.target.checked)}
+              />
+              <span>Temporary availability (short-term rental)</span>
+            </label>
           </div>
 
           {/* ── Amenities ── */}

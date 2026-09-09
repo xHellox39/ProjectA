@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Moon, Sun } from 'lucide-react';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import { motion } from 'framer-motion';
 import {
     ArrowLeft,
@@ -215,6 +217,7 @@ function PropertyDetail() {
                     </nav>
                     <div className="pd-topactions" data-customize-id="global.top-actions">
                         <Link to="/properties" className="pd-top-action-link">Properties</Link>
+                        <ThemeSwitcher />
                     </div>
                 </header>
             )}
