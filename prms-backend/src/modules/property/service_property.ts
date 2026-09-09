@@ -125,7 +125,30 @@ export async function searchProperties(
     }
 
     if (propertyType) {
-        where.property_type = propertyType;
+        // Frontend sends high-level categories (Residential, Commercial, Industrial, Land).
+        // DB stores specific types (apartment, townhouse, studio, commercial, industrial, land).
+        // Map category to DB property_type(s) using case-insensitive contains.
+        const categoryLower = propertyType.toLowerCase();
+
+        const typeMap: Record<string, string[]> = {
+            residential: ['apartment', 'townhouse', 'studio', 'condo', 'loft', 'house'],
+            commercial: ['commercial'],
+            industrial: ['industrial'],
+            land: ['land'],
+        };
+
+        const dbTypes = typeMap[categoryLower];
+
+        if (dbTypes && dbTypes.length > 0) {
+            where.property_type = {
+                in: dbTypes,
+            };
+        } else {
+            // Fallback: case-insensitive contains for unknown types
+            where.property_type = {
+                contains: propertyType,
+            };
+        }
     }
 
     if (categoryId) {

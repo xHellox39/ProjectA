@@ -9,8 +9,9 @@ import {
     Search,
     Filter,
     Home,
-    Store,
     Briefcase,
+    Factory,
+    Trees,
     Plus,
     Grid3x3,
     List,
@@ -27,7 +28,8 @@ const PROPERTY_TYPES = [
     { key: 'all', label: 'All Types', icon: Building2 },
     { key: 'Residential', label: 'Residential', icon: Home },
     { key: 'Commercial', label: 'Commercial', icon: Briefcase },
-    { key: 'Retail', label: 'Retail', icon: Store },
+    { key: 'Industrial', label: 'Industrial', icon: Factory },
+    { key: 'Land', label: 'Land', icon: Trees },
 ]
 
 const STATUS_FILTERS = [

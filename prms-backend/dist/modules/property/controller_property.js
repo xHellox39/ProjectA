@@ -77,15 +77,8 @@ class PropertyController {
                 const maxRent = req.query.maxRent !== undefined
                     ? Number(req.query.maxRent)
                     : undefined;
-                const { properties, total } = await propertyService.getAllProperties(page, limit, {
-                    search: search || undefined,
-                    type: type || undefined,
-                    status: status || undefined,
-                    city: city || undefined,
-                    state: state || undefined,
-                    minRent: Number.isFinite(minRent) ? minRent : undefined,
-                    maxRent: Number.isFinite(maxRent) ? maxRent : undefined,
-                });
+                const { properties, total } = await propertyService.searchProperties(page, limit, search || undefined, type || undefined, undefined, // categoryId
+                status || undefined);
                 HELPERS(req).log({
                     action: 'VIEW_PROPERTIES',
                     entity: 'Property',
